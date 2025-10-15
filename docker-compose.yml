@@ -1,0 +1,29 @@
+# Versión del formato del archivo docker-compose
+version: '3.8'
+
+# Aquí definimos todos nuestros servicios (contenedores)
+services:
+  # Nombramos nuestro primer servicio 'db' (de database)
+  db:
+    # La imagen de Docker que usaremos. En este caso, PostgreSQL versión 13.
+    image: postgres:16
+    # Un nombre amigable para el contenedor que se va a crear
+    container_name: postgres_db_mithoworld
+    # Variables de entorno que se pasarán al contenedor de PostgreSQL
+    # Esto es crucial para configurar la base de datos al iniciarla
+    environment:
+      POSTGRES_DB: ${DB_NAME}          # Nombre de la base de datos
+      POSTGRES_USER: ${DB_USER}        # Usuario para la base de datos
+      POSTGRES_PASSWORD: ${DB_PASSWORD}  # Contraseña para el usuario
+    # 'volumes' asegura que los datos de tu base de datos persistan
+    # incluso si el contenedor se elimina o se reinicia.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    # Mapea el puerto 5432 del contenedor al puerto 5432 de tu servidor Ubuntu
+    # para que Django pueda conectarse.
+    ports:
+      - "5433:5432"
+
+# Define el volumen que declaramos arriba.
+volumes:
+  postgres_data:
