@@ -39,6 +39,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Aplicaciones de terceros
+    'rest_framework',
+
+    # Mis aplicaciones
     'criaturas',
 ]
 
@@ -82,7 +87,7 @@ DATABASES = {
         'USER': config('DB_USER'),
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': '127.0.0.1', # O 'localhost'
-        'PORT': '5433',     # <-- ¡ACTUALIZA EL PUERTO AQUÍ TAMBIÉN!
+        'PORT': '5433',
     }
 }
 
