@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 # Al inicio de backend/settings.py
 from decouple import config
@@ -132,3 +133,17 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+
+
+
+
+# Configuración de Archivos Multimedia (Imágenes, Videos, etc.)
+
+# URL pública: Cuando alguien entre a http://tu-sitio/media/foto.jpg, Django sabrá que buscan un archivo.
+MEDIA_URL = '/media/'
+
+# Ruta física: Construimos la ruta absoluta carpeta_proyecto/media
+# os.path.join asegura que funcione igual en Windows o Linux.
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

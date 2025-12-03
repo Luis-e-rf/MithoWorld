@@ -19,6 +19,13 @@ class Criatura(models.Model):
     defensa = models.IntegerField()
     velocidad = models.IntegerField()
     salud = models.IntegerField()
+
+    # NUEVO CAMPO DE IMAGEN
+    # upload_to: Django creará automáticamente una subcarpeta 'criaturas' dentro de 'media'.
+    # null=True: Permite que la base de datos acepte que el campo esté vacío.
+    # blank=True: Permite que el formulario del admin te deje guardar sin subir foto obligatoriamente.
+    imagen = models.ImageField(upload_to='criaturas/', null=True, blank=True)
+    
     
     # Esto es útil para ver un nombre legible en el panel de administrador
     def __str__(self):
