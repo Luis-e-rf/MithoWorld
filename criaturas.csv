@@ -1,51 +1,51 @@
-﻿Nombre;Tipo Primario;Tipo Secundario;Salud;Ataque;Defensa;Velocidad;Descripción
-Vornskr;Oscuridad;Aire;50;90;40;95;Una sombra depredadora que acecha en las corrientes de aire nocturnas. Se dice que su aullido es el último sonido que escuchan sus presas.
-Kaelith;Luz;Plasma;80;70;65;70;Entidad benevolente nacida del núcleo de una estrella. Su cuerpo irradia una energía reconfortante y a la vez, inestable.
-Grolnok;Tierra;Fuego;90;85;95;20;Bestia ancestral cuyo corazón es un núcleo de magma. Despierta de su letargo en las profundidades solo cuando el mundo tiembla.
-Zyrion;Aire;;45;60;30;100;Espíritu elemental del viento, casi invisible al ojo humano. Su paso es tan rápido y silencioso como una brisa de verano.
-Morvath;Oscuridad;Tierra;70;80;75;35;Criatura que emerge de tierras corrompidas por magia prohibida. Su toque marchita la vida y convierte la piedra en polvo.
-Cyndrax;Fuego;Plasma;60;95;50;80;Un ser compuesto de llamas inestables y energía pura. Consume todo tipo de materia para alimentar su núcleo crepitante.
-Rhivax;Agua;;75;70;80;60;Guardián de las fosas abisales. Su cuerpo bioluminiscente hipnotiza a sus presas antes de atraparlas en la oscuridad del océano.
-Sylas;Luz;Tierra;85;50;90;40;Protector de bosques olvidados, nacido de la unión de un rayo de sol y una gema antigua. Su piel de cristal refleja la luz en destellos cegadores.
-Kordath;Tierra;;100;75;100;10;Coloso de obsidiana y roca que vaga por desiertos inhóspitos. Es tan lento como el movimiento de una montaña, e igual de imparable.
-Luvian;Agua;Aire;65;65;60;85;Ser etéreo que habita en la niebla de cascadas sagradas. Puede cambiar su estado de líquido a gaseoso a voluntad.
-Zyphiel;Aire;Luz;55;80;55;98;Mensajero celestial que surca los cielos a velocidades impensables. Se dice que sus alas están tejidas con la luz del amanecer.
-Noktis;Oscuridad;;62;88;60;70;La personificación de la pesadilla. Se alimenta del miedo y puede adoptar la forma de aquello que más teme su oponente.
-Thyron;Fuego;;58;98;45;75;Un espíritu de ira y destrucción forjado en el corazón de un volcán. Su único propósito es la aniquilación a través del fuego.
-Jornak;Tierra;Agua;95;60;85;30;Criatura anfibia que habita en pantanos y ciénagas. Su cuerpo de lodo y raíces puede regenerarse al contacto con el agua.
-Quilon;Plasma;;75;75;75;75;Ente de energía amorfa y cambiante. Su existencia desafía las leyes de la física, alterando la realidad a su alrededor.
-Ixor;Plasma;Oscuridad;65;85;70;50;Un agujero en la realidad con consciencia propia. Atrae y consume la energía y la luz de todo lo que lo rodea.
-Pelagos;Agua;Luz;80;40;70;65;Espíritu sereno de las aguas cristalinas. Se encarga de purificar los mares y guiar a las almas perdidas en el océano.
-Arcanis;Luz;Oscuridad;68;82;82;60;Guardián del equilibrio entre el día y la noche. Blande tanto el poder de la creación como el del vacío.
-Vorlag;Fuego;Tierra;80;92;88;25;Bestia de asedio con un apetito insaciable por los minerales. Su cuerpo es una forja viviente que derrite la roca para alimentarse.
-Lysandor;Aire;;50;55;40;95;Un ser juguetón y esquivo que cabalga los vientos del oeste. Disfruta creando remolinos y laberintos de aire para confundir a los viajeros.
-Fenthir;Oscuridad;Agua;70;85;70;65;Depredador de las profundidades marinas que caza usando señuelos de luz falsa.
-Sol'kor;Luz;Fuego;65;95;60;70;Encarnación del sol del mediodía, su presencia es tan abrasadora como iluminadora.
-Morthos;Oscuridad;;80;80;80;50;Un cosechador de almas que vaga por campos de batalla olvidados.
-Cryll;Agua;Tierra;85;70;90;20;Criatura formada por hielo milenario y tierra congelada.
-Aethel;Luz;;90;50;75;60;Espíritu antiguo cuya sabiduría es tan vasta como el cielo estrellado.
-Briaroc;Tierra;;78;70;88;30;Un golem viviente hecho de zarzas petrificadas y espinas de roca.
-Drevin;Oscuridad;Plasma;53;92;40;85;Un fallo en el tejido de la realidad, su forma es inestable y corruptora.
-Elyx;Aire;Agua;60;75;55;90;Ser que habita en las nubes y se manifiesta durante las tormentas.
-Fenrix;Fuego;Aire;65;88;60;82;Un fénix oscuro cuyas alas son de ceniza y brasas.
-Gorvax;Tierra;Oscuridad;91;82;92;15;Devorador de montañas que habita en la oscuridad subterránea.
-Hextor;Plasma;;60;90;50;70;Conjurador de energías caóticas, su mera presencia distorsiona la magia.
-Iridian;Luz;Agua;70;60;70;75;Una medusa celestial que flota en el aire, dejando un rastro iridiscente.
-Jynx;Oscuridad;;40;45;35;90;Pequeña criatura maliciosa que se deleita trayendo mala fortuna.
-Kaelen;Luz;;75;80;85;65;Caballero de luz pura que defiende reinos olvidados.
-Lyra;Aire;Luz;67;65;60;88;Su canto puede calmar tempestades o invocarlas.
-Malakor;Fuego;Oscuridad;74;96;70;60;Un demonio forjado en odio, cuyas llamas queman el alma.
-Nymira;Agua;Luz;75;55;65;70;Ninfa protectora de un manantial sagrado.
-Orin;Tierra;Luz;98;70;95;25;Titán benevolente que dio forma a las montañas y valles.
-Faelan;Aire;;65;60;60;80;Espíritu del bosque tan antiguo como los propios árboles.
-Qy'ren;Plasma;Agua;70;78;68;74;Entidad acuática de un plano diferente, su cuerpo líquido desafía la gravedad.
-Rorik;Fuego;;70;85;75;70;Un guerrero elemental cuyo espíritu arde con la furia de una batalla sin fin.
-Sariel;Luz;Aire;65;85;65;85;Un ángel caído que aún conserva un vestigio de su poder celestial.
-Tenebryn;Oscuridad;;55;75;50;80;Una criatura tejida a partir de las sombras más profundas de un bosque encantado.
-Valerius;Luz;;77;78;82;60;Comandante de una legión fantasmal que solo responde a la llamada de un corazón noble.
-Wexle;Plasma;;60;60;60;60;Pequeño ser impredecible cuya forma y tipo cambian constantemente.
-Xylos;Tierra;;95;50;90;10;Ancestro de todos los árboles, sus raíces se extienden hasta el corazón del mundo.
-Ythril;Plasma;Luz;41;99;30;90;Fragmento de una estrella de neutrones que adquirió consciencia.
-Zarthos;Fuego;Plasma;82;94;78;80;Un dragón cósmico que viaja entre galaxias, dejando estelas de fuego estelar.
-Omen;Oscuridad;Aire;59;77;57;97;Un presagio alado del desastre, su aparición precede a grandes calamidades.
-Rivenor;Tierra;Agua;84;68;86;40;Un elemental nacido de la erosión, su cuerpo está hecho de roca de río y limo.
+﻿Nombre;Tipo Primario;Tipo Secundario;Salud;Ataque;Defensa;Velocidad;Descripción;NombreArchivo
+Vornskr;Oscuridad;Aire;50;90;40;95;Una sombra depredadora que acecha en las corrientes de aire nocturnas. Se dice que su aullido es el último sonido que escuchan sus presas.;1_Vornskr.png
+Kaelith;Luz;Plasma;80;70;65;70;Entidad benevolente nacida del núcleo de una estrella. Su cuerpo irradia una energía reconfortante y a la vez, inestable.;2_Kaelith.png
+Grolnok;Tierra;Fuego;90;85;95;20;Bestia ancestral cuyo corazón es un núcleo de magma. Despierta de su letargo en las profundidades solo cuando el mundo tiembla.;3_Grolnok.png
+Zyrion;Aire;;45;60;30;100;Espíritu elemental del viento, casi invisible al ojo humano. Su paso es tan rápido y silencioso como una brisa de verano.;4_Zyrion.png
+Morvath;Oscuridad;Tierra;70;80;75;35;Criatura que emerge de tierras corrompidas por magia prohibida. Su toque marchita la vida y convierte la piedra en polvo.;5_Morvath.png
+Cyndrax;Fuego;Plasma;60;95;50;80;Un ser compuesto de llamas inestables y energía pura. Consume todo tipo de materia para alimentar su núcleo crepitante.;6_Cyndrax.png
+Rhivax;Agua;;75;70;80;60;Guardián de las fosas abisales. Su cuerpo bioluminiscente hipnotiza a sus presas antes de atraparlas en la oscuridad del océano.;7_Rhivax.png
+Sylas;Luz;Tierra;85;50;90;40;Protector de bosques olvidados, nacido de la unión de un rayo de sol y una gema antigua. Su piel de cristal refleja la luz en destellos cegadores.;8_Sylas.png
+Kordath;Tierra;;100;75;100;10;Coloso de obsidiana y roca que vaga por desiertos inhóspitos. Es tan lento como el movimiento de una montaña, e igual de imparable.;9_Kordath.png
+Luvian;Agua;Aire;65;65;60;85;Ser etéreo que habita en la niebla de cascadas sagradas. Puede cambiar su estado de líquido a gaseoso a voluntad.;10_Luvian.png
+Zyphiel;Aire;Luz;55;80;55;98;Mensajero celestial que surca los cielos a velocidades impensables. Se dice que sus alas están tejidas con la luz del amanecer.;11_Zyphiel.png
+Noktis;Oscuridad;;62;88;60;70;La personificación de la pesadilla. Se alimenta del miedo y puede adoptar la forma de aquello que más teme su oponente.;12_Noktis.png
+Thyron;Fuego;;58;98;45;75;Un espíritu de ira y destrucción forjado en el corazón de un volcán. Su único propósito es la aniquilación a través del fuego.;13_Thyron.png
+Jornak;Tierra;Agua;95;60;85;30;Criatura anfibia que habita en pantanos y ciénagas. Su cuerpo de lodo y raíces puede regenerarse al contacto con el agua.;14_Jornak.png
+Quilon;Plasma;;75;75;75;75;Ente de energía amorfa y cambiante. Su existencia desafía las leyes de la física, alterando la realidad a su alrededor.;15_Quilon.png
+Ixor;Plasma;Oscuridad;65;85;70;50;Un agujero en la realidad con consciencia propia. Atrae y consume la energía y la luz de todo lo que lo rodea.;16_Ixor.png
+Pelagos;Agua;Luz;80;40;70;65;Espíritu sereno de las aguas cristalinas. Se encarga de purificar los mares y guiar a las almas perdidas en el océano.;17_Pelagos.png
+Arcanis;Luz;Oscuridad;68;82;82;60;Guardián del equilibrio entre el día y la noche. Blande tanto el poder de la creación como el del vacío.;18_Arcanis.png
+Vorlag;Fuego;Tierra;80;92;88;25;Bestia de asedio con un apetito insaciable por los minerales. Su cuerpo es una forja viviente que derrite la roca para alimentarse.;19_Vorlag.png
+Lysandor;Aire;;50;55;40;95;Un ser juguetón y esquivo que cabalga los vientos del oeste. Disfruta creando remolinos y laberintos de aire para confundir a los viajeros.;20_Lysandor.png
+Fenthir;Oscuridad;Agua;70;85;70;65;Depredador de las profundidades marinas que caza usando señuelos de luz falsa.;21_Fenthir.png
+Sol'kor;Luz;Fuego;65;95;60;70;Encarnación del sol del mediodía, su presencia es tan abrasadora como iluminadora.;22_Sol'kor.png
+Morthos;Oscuridad;;80;80;80;50;Un cosechador de almas que vaga por campos de batalla olvidados.;23_Morthos.png
+Cryll;Agua;Tierra;85;70;90;20;Criatura formada por hielo milenario y tierra congelada.;24_Cryll.png
+Aethel;Luz;;90;50;75;60;Espíritu antiguo cuya sabiduría es tan vasta como el cielo estrellado.;25_Aethel.png
+Briaroc;Tierra;;78;70;88;30;Un golem viviente hecho de zarzas petrificadas y espinas de roca.;26_Briaroc.png
+Drevin;Oscuridad;Plasma;53;92;40;85;Un fallo en el tejido de la realidad, su forma es inestable y corruptora.;27_Drevin.png
+Elyx;Aire;Agua;60;75;55;90;Ser que habita en las nubes y se manifiesta durante las tormentas.;28_Elyx.png
+Fenrix;Fuego;Aire;65;88;60;82;Un fénix oscuro cuyas alas son de ceniza y brasas.;29_Fenrix.png
+Gorvax;Tierra;Oscuridad;91;82;92;15;Devorador de montañas que habita en la oscuridad subterránea.;30_Gorvax.png
+Hextor;Plasma;;60;90;50;70;Conjurador de energías caóticas, su mera presencia distorsiona la magia.;31_Hextor.png
+Iridian;Luz;Agua;70;60;70;75;Una medusa celestial que flota en el aire, dejando un rastro iridiscente.;32_Iridian.png
+Jynx;Oscuridad;;40;45;35;90;Pequeña criatura maliciosa que se deleita trayendo mala fortuna.;33_Jynx.png
+Kaelen;Luz;;75;80;85;65;Caballero de luz pura que defiende reinos olvidados.;34_Kaelen.png
+Lyra;Aire;Luz;67;65;60;88;Su canto puede calmar tempestades o invocarlas.;35_Lyra.png
+Malakor;Fuego;Oscuridad;74;96;70;60;Un demonio forjado en odio, cuyas llamas queman el alma.;36_Malakor.png
+Nymira;Agua;Luz;75;55;65;70;Ninfa protectora de un manantial sagrado.;37_Nymira.png
+Orin;Tierra;Luz;98;70;95;25;Titán benevolente que dio forma a las montañas y valles.;38_Orin.png
+Faelan;Aire;;65;60;60;80;Espíritu del bosque tan antiguo como los propios árboles.;39_Faelan.png
+Qy'ren;Plasma;Agua;70;78;68;74;Entidad acuática de un plano diferente, su cuerpo líquido desafía la gravedad.;40_Qy'ren.png
+Rorik;Fuego;;70;85;75;70;Un guerrero elemental cuyo espíritu arde con la furia de una batalla sin fin.;41_Rorik.png
+Sariel;Luz;Aire;65;85;65;85;Un ángel caído que aún conserva un vestigio de su poder celestial.;42_Sariel.png
+Tenebryn;Oscuridad;;55;75;50;80;Una criatura tejida a partir de las sombras más profundas de un bosque encantado.;43_Tenebryn.png
+Valerius;Luz;;77;78;82;60;Comandante de una legión fantasmal que solo responde a la llamada de un corazón noble.;44_Valerius.png
+Wexle;Plasma;;60;60;60;60;Pequeño ser impredecible cuya forma y tipo cambian constantemente.;45_Wexle.png
+Xylos;Tierra;;95;50;90;10;Ancestro de todos los árboles, sus raíces se extienden hasta el corazón del mundo.;46_Xylos.png
+Ythril;Plasma;Luz;41;99;30;90;Fragmento de una estrella de neutrones que adquirió consciencia.;47_Ythril.png
+Zarthos;Fuego;Plasma;82;94;78;80;Un dragón cósmico que viaja entre galaxias, dejando estelas de fuego estelar.;48_Zarthos.png
+Omen;Oscuridad;Aire;59;77;57;97;Un presagio alado del desastre, su aparición precede a grandes calamidades.;49_Omen.png
+Rivenor;Tierra;Agua;84;68;86;40;Un elemental nacido de la erosión, su cuerpo está hecho de roca de río y limo.;50_Rivenor.png

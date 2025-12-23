@@ -15,3 +15,6 @@ Thumbs.db
 
 # Archivos Multimedia (User Generated Content)
 media/
+
+# Recursos para poblar DB (Binarios pesados)
+imagenes_semilla/
