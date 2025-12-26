@@ -1,0 +1,114 @@
+/* static/css/main.css */
+
+/* 1. Tipografía y Base: Usamos la pila de fuentes de sistema de Apple (San Francisco) */
+:root {
+    --bg-color: #fbfbfd; /* Un gris casi blanco, clásico de Apple */
+    --text-primary: #1d1d1f;
+    --text-secondary: #86868b;
+    --accent-color: #0071e3; /* El azul característico de los enlaces de Apple */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased; /* Hace que la fuente se vea nítida en Mac */
+}
+
+/* 2. Layout Principal */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 60px;
+}
+
+h1 {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -0.02em; /* Las letras un poco más juntas para elegancia */
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 21px;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+/* 3. Grid de Criaturas */
+.creature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 30px;
+}
+
+/* 4. Tarjetas Glassmorphism (El toque mágico) */
+.creature-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px; /* Bordes muy redondeados */
+    padding: 20px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(20px); /* Esto crea el efecto de vidrio borroso detrás */
+    -webkit-backdrop-filter: blur(20px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.creature-card:hover {
+    transform: translateY(-5px); /* Levanta levemente la tarjeta */
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.card-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    background-color: #eee; /* Fondo temporal mientras carga */
+}
+
+.card-title {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 0 0 5px 0;
+}
+
+.card-type {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Pequeña etiqueta para los Stats */
+.stat-badge {
+    display: inline-block;
+    background: rgba(0, 113, 227, 0.1);
+    color: var(--accent-color);
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+/* Para alinear los badges de stats horizontalmente */
+.stats-row {
+    display: flex;
+    gap: 8px; /* Espacio entre etiquetas */
+    margin-top: 10px;
+}

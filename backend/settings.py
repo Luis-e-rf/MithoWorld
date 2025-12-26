@@ -63,7 +63,7 @@ ROOT_URLCONF = 'backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -147,3 +147,11 @@ MEDIA_URL = '/media/'
 # Ruta física: Construimos la ruta absoluta carpeta_proyecto/media
 # os.path.join asegura que funcione igual en Windows o Linux.
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = '/static/'
+
+# Le dice a Django dónde buscar tus archivos de desarrollo
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]

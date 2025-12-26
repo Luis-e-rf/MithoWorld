@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MithoWorld</title>
+    <!-- Cargamos nuestros estilos estáticos -->
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>MithoWorld</h1>
+            <p class="subtitle">Explora un universo de criaturas legendarias.</p>
+        </header>
+
+        <!-- Aquí es donde JavaScript inyectará las cartas reales luego -->
+        <div class="creature-grid" id="creature-container">
+            <!-- JavaScript llenará esto automáticamente -->
+            <p style="text-align:center; width:100%; color:#888;">Cargando el universo...</p>
+        </div>
+    </div>
+    <!-- Cargamos el script JS al final para optimizar la carga -->
+    <script src="{% static 'js/app.js' %}"></script>
+
+</body>
+</html>

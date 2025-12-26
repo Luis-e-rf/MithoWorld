@@ -6,9 +6,10 @@ from django.views.generic import RedirectView
 # IMPORTACIONES NUEVAS NECESARIAS
 from django.conf import settings
 from django.conf.urls.static import static
+from criaturas.views import home  # <--- Importamos la vista
 
 urlpatterns = [
-    path('', RedirectView.as_view(url='admin/', permanent=False)),
+    path('', home, name='home'),
     path('admin/', admin.site.urls),
     path('api/', include('criaturas.urls')),
 ]

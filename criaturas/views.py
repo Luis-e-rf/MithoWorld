@@ -22,3 +22,11 @@ class CriaturaViewSet(viewsets.ReadOnlyModelViewSet):
     # Especifica qué serializador se utilizará para convertir las instancias
     # del modelo a JSON y viceversa
     serializer_class = CriaturaSerializer
+
+
+# criaturas/views.py
+
+from django.shortcuts import render
+
+def home(request):
+    return render(request, 'index.html')
