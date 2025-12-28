@@ -7,11 +7,14 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 from criaturas.views import home  # <--- Importamos la vista
+from oraculo.views import arena_view
 
 urlpatterns = [
     path('', home, name='home'),
+    path('arena/', arena_view, name='arena'),
     path('admin/', admin.site.urls),
     path('api/', include('criaturas.urls')),
+    path('api/oraculo/', include('oraculo.urls')),
 ]
 
 # LÓGICA MÁGICA:

@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 
     # Mis aplicaciones
     'criaturas',
+    'oraculo',
 ]
 
 MIDDLEWARE = [
