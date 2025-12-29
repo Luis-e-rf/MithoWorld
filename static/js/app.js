@@ -55,7 +55,7 @@ function crearTarjetaHTML(criatura) {
 
     // Usamos "Template Literals" (las comillas invertidas `) para mezclar HTML con variables JS
     return `
-        <div class="creature-card">
+        <div class="creature-card" onclick="window.location.href='/criatura/${criatura.id}/'">
             <img src="${imagenUrl}" alt="${criatura.nombre}" class="card-image" loading="lazy">
             <h3 class="card-title">${criatura.nombre}</h3>
             <span class="card-type">${tipos}</span>

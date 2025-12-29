@@ -257,3 +257,16 @@ select:focus {
     padding-bottom: 50px;
     min-height: 60px;
 }
+
+/* Efectos de Victoria/Derrota */
+.winner-card {
+    border: 3px solid #34c759; /* Verde Apple */
+    box-shadow: 0 0 30px rgba(52, 199, 89, 0.4);
+    transform: scale(1.05);
+}
+
+.loser-card {
+    opacity: 0.5;
+    filter: grayscale(100%);
+    transform: scale(0.95);
+}

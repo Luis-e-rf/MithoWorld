@@ -63,6 +63,24 @@ async function predecirCombate() {
         const data = await response.json();
 
         if (data.resultado) {
+            // 1. Limpiar clases anteriores (por si vuelven a jugar)
+            document.querySelector('#preview-1 img').className = '';
+            document.querySelector('#preview-2 img').className = '';
+
+            // 2. Identificar Ganador y Perdedor
+            // El ID del ganador viene en la respuesta data.resultado.ganador_id
+            const idGanador = data.resultado.ganador_id;
+            
+            // Los valores de los selects son Strings, la API devuelve Int, cuidado con la comparación (usar ==)
+            if (id1 == idGanador) {
+                document.querySelector('#preview-1 img').classList.add('winner-card');
+                document.querySelector('#preview-2 img').classList.add('loser-card');
+            } else {
+                document.querySelector('#preview-2 img').classList.add('winner-card');
+                document.querySelector('#preview-1 img').classList.add('loser-card');
+            }
+
+            // Mostrar Texto
             resultadoDiv.innerHTML = `
                 <span style="color: var(--accent-color); font-size: 30px;">
                     🏆 Ganador: ${data.resultado.ganador_nombre}

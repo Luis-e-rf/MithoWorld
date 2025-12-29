@@ -2,6 +2,7 @@
 from rest_framework import viewsets
 from .models import Criatura
 from .serializers import CriaturaSerializer
+from django.shortcuts import render, get_object_or_404
 
 # ViewSet para el manejo de las Criaturas en la API
 class CriaturaViewSet(viewsets.ReadOnlyModelViewSet):
@@ -26,7 +27,10 @@ class CriaturaViewSet(viewsets.ReadOnlyModelViewSet):
 
 # criaturas/views.py
 
-from django.shortcuts import render
-
 def home(request):
     return render(request, 'index.html')
+
+def detalle_criatura(request, id):
+    # Busca la criatura o lanza error 404 si no existe
+    criatura = get_object_or_404(Criatura, id=id)
+    return render(request, 'detalle.html', {'criatura': criatura})
