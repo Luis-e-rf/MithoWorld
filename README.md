@@ -9,6 +9,12 @@ Una plataforma web Full Stack que combina gestión de datos, visualización y pr
 
 🔗 **Demo en vivo:** [https://mithoworld.yurack.com](https://mithoworld.yurack.com)
 
+## 📸 Capturas de Pantalla
+
+|                    Página Principal                    |               Sistema de Batallas (Oráculo IA)               |
+| :----------------------------------------------------: | :----------------------------------------------------------: |
+| ![Página principal de MithoWorld](static/img/home.png) | ![Sistema de predicción de batallas](static/img/batalla.png) |
+
 ---
 
 ## 🚀 Características Principales
@@ -38,9 +44,10 @@ Una plataforma web Full Stack que combina gestión de datos, visualización y pr
 
 ---
 
+```mermaid
 graph TD
-User((Usuario Internet)) -->|HTTPS| CF[Cloudflare Tunnel]
-CF -->|Zero Trust| Server[Ubuntu Server VPS]
+    User((Usuario Internet)) -->|HTTPS| CF[Cloudflare Tunnel]
+    CF -->|Zero Trust| Server[Ubuntu Server VPS]
 
     subgraph "Infraestructura Dockerizada"
         Server -->|Proxy| Guni[Gunicorn WSGI]
@@ -56,6 +63,7 @@ CF -->|Zero Trust| Server[Ubuntu Server VPS]
     subgraph "Business Intelligence"
         PBI[Power BI Desktop] -->|Túnel SSH| DB
     end
+```
 
 ## 🛠️ Stack Tecnológico
 
@@ -166,6 +174,6 @@ Este proyecto sirvió como laboratorio para resolver retos de ingeniería real:
 
 ## ✒️ Autor
 
-**Luis Rodriguez (Yurack)**
+**Luis Ernesto Rodriguez Felacio (Yurack)** - [LinkedIn](https://www.linkedin.com/in/luis-ernesto-rodriguez-felacio/)
 
 _Ingeniero Informático & Especialista en IA_
