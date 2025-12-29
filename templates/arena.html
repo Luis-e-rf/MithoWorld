@@ -1,74 +1,15 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Arena de Combate - MithoWorld</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <style>
-        /* Estilos específicos para la Arena */
-        .arena-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 40px;
-            margin-top: 50px;
-        }
-        .fighter-box {
-            width: 300px;
-            text-align: center;
-        }
-        .vs-badge {
-            font-size: 40px;
-            font-weight: 900;
-            color: var(--accent-color);
-            background: #fff;
-            padding: 20px;
-            border-radius: 50%;
-            box-shadow: var(--shadow);
-        }
-        select {
-            width: 100%;
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-            margin-bottom: 20px;
-            background: white;
-        }
-        .predict-btn {
-            display: block;
-            margin: 40px auto;
-            padding: 15px 40px;
-            font-size: 18px;
-            background: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .predict-btn:hover { transform: scale(1.05); }
-        
-        #resultado-overlay {
-            margin-top: 30px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--text-primary);
-            min-height: 50px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>El Oráculo de Combate</h1>
-            <p class="subtitle">La IA predice el futuro. Elige a los combatientes.</p>
-            <a href="/" style="text-decoration: none; color: var(--accent-color);">← Volver a la galería</a>
-        </header>
+{% extends 'base.html' %}
+{% load static %}
 
-        <div class="arena-container">
+{% block title %}Arena de Combate - MithoWorld{% endblock %}
+
+{% block content %}
+    <header style="text-align: center; margin: 60px 0;">
+        <h1>El Oráculo de Combate</h1>
+        <p class="subtitle">La IA predice el futuro basándose en 10,000 simulaciones.</p>
+    </header>
+
+    <div class="arena-container">
             <!-- LUCHADOR 1 -->
             <div class="fighter-box creature-card">
                 <h3>Luchador 1</h3>
@@ -88,14 +29,12 @@
                 </select>
                 <div id="preview-2"></div>
             </div>
-        </div>
-
-        <button class="predict-btn" onclick="predecirCombate()">🔮 Predecir Ganador</button>
-
-        <div id="resultado-overlay"></div>
     </div>
 
-    <!-- Script JS para la lógica -->
+    <button class="predict-btn" onclick="predecirCombate()">🔮 Predecir Ganador</button>
+    <div id="resultado-overlay"></div>
+{% endblock %}
+
+{% block scripts %}
     <script src="{% static 'js/arena.js' %}"></script>
-</body>
-</html>
+{% endblock %}

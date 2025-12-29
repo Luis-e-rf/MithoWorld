@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MithoWorld{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <!-- Icono de pestaña (Favicon) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐉</text></svg>">
+</head>
+<body>
+
+    <!-- MENÚ DE NAVEGACIÓN GLOBAL -->
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="{% url 'home' %}" class="logo">MithoWorld</a>
+            <div class="nav-links">
+                <a href="{% url 'home' %}">Galería</a>
+                <a href="{% url 'arena' %}">⚔️ Arena IA</a>
+                <a href="/admin" target="_blank">Admin</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- AQUÍ SE INYECTA EL CONTENIDO DE CADA PÁGINA -->
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <footer>
+        <p>Desarrollado con Django, Docker y Pasión por <strong>Yurack</strong> © 2025</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,5 +1,56 @@
 /* static/css/main.css */
 
+/* Agrega esto al inicio de main.css */
+
+/* Navbar */
+.navbar {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 15px 0;
+}
+
+.nav-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--text-secondary);
+    margin-left: 20px;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.nav-links a:hover {
+    color: var(--accent-color);
+}
+
+footer {
+    text-align: center;
+    margin-top: 80px;
+    padding: 40px 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    border-top: 1px solid #eaeaea;
+}
+
 /* 1. Tipografía y Base: Usamos la pila de fuentes de sistema de Apple (San Francisco) */
 :root {
     --bg-color: #fbfbfd; /* Un gris casi blanco, clásico de Apple */
@@ -111,4 +162,98 @@ h1 {
     display: flex;
     gap: 8px; /* Espacio entre etiquetas */
     margin-top: 10px;
+}
+
+/* =========================================
+   ESTILOS ESPECÍFICOS DE LA ARENA
+   ========================================= */
+
+.arena-container {
+    display: flex;
+    justify-content: center;
+    align-items: center; /* Alineación vertical */
+    gap: 20px;
+    margin-top: 40px;
+    flex-wrap: wrap; /* Para que se adapte en móviles */
+}
+
+/* La caja del luchador hereda de .creature-card,
+   aquí solo ajustamos dimensiones */
+.fighter-box {
+    width: 300px;
+    min-height: 400px; /* Altura mínima para que se vean iguales */
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.vs-badge {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--accent-color);
+    background: #fff;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    z-index: 10; /* Para que quede por encima si se solapan */
+}
+
+/* Estilo Apple para los Selectores Dropdown */
+select {
+    width: 100%;
+    padding: 12px 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.1);
+    background-color: rgba(255,255,255,0.8);
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    appearance: none; /* Quita la flecha fea por defecto del navegador */
+    /* Agregamos una flecha personalizada SVG en background si quisieras,
+       pero por ahora appearance: none lo hace ver más limpio */
+}
+
+select:focus {
+    border-color: var(--accent-color);
+}
+
+/* Botón de Predicción */
+.predict-btn {
+    display: block;
+    margin: 50px auto 20px auto;
+    padding: 15px 50px;
+    font-size: 18px;
+    font-weight: 600;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 50px; /* Pill shape */
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.predict-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 113, 227, 0.4);
+}
+
+.predict-btn:active {
+    transform: scale(0.98);
+}
+
+/* Resultado */
+#resultado-overlay {
+    text-align: center;
+    margin-top: 30px;
+    padding-bottom: 50px;
+    min-height: 60px;
 }
