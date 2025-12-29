@@ -38,6 +38,25 @@ Una plataforma web Full Stack que combina gestión de datos, visualización y pr
 
 ---
 
+graph TD
+User((Usuario Internet)) -->|HTTPS| CF[Cloudflare Tunnel]
+CF -->|Zero Trust| Server[Ubuntu Server VPS]
+
+    subgraph "Infraestructura Dockerizada"
+        Server -->|Proxy| Guni[Gunicorn WSGI]
+        Guni -->|Ejecuta| Django[Django Backend API]
+        Django <-->|Lee/Escribe| DB[(PostgreSQL 16)]
+
+        subgraph "Módulo IA"
+            Django -->|Consulta| Model[[Modelo Random Forest .pkl]]
+            Note[Patrón Singleton en Memoria] -.-> Model
+        end
+    end
+
+    subgraph "Business Intelligence"
+        PBI[Power BI Desktop] -->|Túnel SSH| DB
+    end
+
 ## 🛠️ Stack Tecnológico
 
 | Área              | Tecnologías                               |
