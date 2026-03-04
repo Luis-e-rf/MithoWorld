@@ -1,3 +1,16 @@
+/**
+ * static/js/arena.js — Script de la Arena de Combate IA (arena.html)
+ * 
+ * Flujo:
+ * 1. Al cargar el DOM, llama a /api/criaturas/ para llenar los dropdowns
+ * 2. Cuando el usuario selecciona una criatura, muestra su foto (preview)
+ * 3. Al hacer click en "Predecir Ganador", envía POST a /api/oraculo/predecir/
+ *    con los IDs de ambos luchadores
+ * 4. El backend usa el modelo de Machine Learning para predecir el ganador
+ * 5. Muestra el resultado con efectos CSS (winner-card / loser-card)
+ */
+
+// Esperamos a que todo el HTML esté listo antes de poblar los selectores
 document.addEventListener('DOMContentLoaded', () => {
     cargarSelectores();
 });

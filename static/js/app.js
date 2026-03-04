@@ -1,4 +1,13 @@
-/* static/js/app.js */
+/**
+ * static/js/app.js — Script de la página de Galería (index.html)
+ * 
+ * Flujo:
+ * 1. Al cargar el DOM, llama a la API REST (/api/criaturas/)
+ * 2. Recibe un array JSON con todas las criaturas
+ * 3. Genera dinámicamente tarjetas HTML para cada criatura
+ * 4. Las inyecta en el contenedor #creature-container
+ * 5. Cada tarjeta es clickeable y navega a /criatura/{id}/ (detalle)
+ */
 
 // Esperamos a que todo el HTML se cargue antes de ejecutar nada.
 document.addEventListener('DOMContentLoaded', () => {
