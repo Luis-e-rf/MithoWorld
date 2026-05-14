@@ -88,9 +88,8 @@ graph TD
    ```
 2. **Configurar entorno virtual:**
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
-   pip install -r requirements.txt
+   uv sync
+   source .venv/bin/activate
    ```
 3. **Levantar Base de Datos (Docker):**
 
@@ -117,15 +116,15 @@ graph TD
    Ejecuta estos comandos en orden para construir la DB y la IA:
 
    ```bash
-   python manage.py migrate
-   python manage.py poblar_criaturas  # Lee CSV y carga imágenes
-   python manage.py simular_batallas  # Genera dataset histórico
-   python manage.py entrenar_oraculo  # Entrena el modelo Random Forest
+   uv run python manage.py migrate
+   uv run python manage.py poblar_criaturas  # Lee CSV y carga imágenes
+   uv run python manage.py simular_batallas  # Genera dataset histórico
+   uv run python manage.py entrenar_oraculo  # Entrena el modelo Random Forest
    ```
 
 6. **Correr servidor de desarrollo:**
    ```bash
-   python manage.py runserver
+   uv run python manage.py runserver
    ```
 
 Accede a: http://localhost:8000

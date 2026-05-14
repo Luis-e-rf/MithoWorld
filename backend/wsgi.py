@@ -3,7 +3,7 @@ WSGI config for backend project.
 
 WSGI (Web Server Gateway Interface) es el estándar para servir apps Python en producción.
 Este archivo expone la variable 'application' que servidores como Gunicorn usan como punto de entrada.
-Comando de producción: gunicorn backend.wsgi:application --bind 0.0.0.0:8000
+Comando de producción: .venv/bin/gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --daemon
 
 For more information on this file, see
 https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
