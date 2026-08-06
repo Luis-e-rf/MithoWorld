@@ -23,7 +23,7 @@ Una plataforma web Full Stack que combina gestión de datos, visualización y pr
 
 - **API RESTful:** Construida con Django Rest Framework (DRF) para servir datos a cualquier cliente.
 - **Base de Datos:** PostgreSQL corriendo en contenedor Docker.
-- **Automatización:** Script personalizado (`BaseCommand`) que puebla la BD desde un CSV e inyecta imágenes binarias automáticamente.
+- **Automatización:** Script personalizado (`BaseCommand`) que puebla la BD desde un CSV. Las imágenes se gestionan con `ImageField` de Django: PostgreSQL registra únicamente la ruta relativa del archivo (`VARCHAR`), y el binario físico reside en el sistema de archivos local dentro de `MEDIA_ROOT` (`media/criaturas/`).
 
 ### 2. Inteligencia Artificial (El Oráculo)
 
@@ -88,9 +88,8 @@ graph TD
    ```
 2. **Configurar entorno virtual:**
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
-   pip install -r requirements.txt
+   uv sync
+   source .venv/bin/activate
    ```
 3. **Levantar Base de Datos (Docker):**
 
@@ -117,15 +116,15 @@ graph TD
    Ejecuta estos comandos en orden para construir la DB y la IA:
 
    ```bash
-   python manage.py migrate
-   python manage.py poblar_criaturas  # Lee CSV y carga imágenes
-   python manage.py simular_batallas  # Genera dataset histórico
-   python manage.py entrenar_oraculo  # Entrena el modelo Random Forest
+   uv run python manage.py migrate
+   uv run python manage.py poblar_criaturas  # Lee CSV y carga imágenes
+   uv run python manage.py simular_batallas  # Genera dataset histórico
+   uv run python manage.py entrenar_oraculo  # Entrena el modelo Random Forest
    ```
 
 6. **Correr servidor de desarrollo:**
    ```bash
-   python manage.py runserver
+   uv run python manage.py runserver
    ```
 
 Accede a: http://localhost:8000
@@ -168,7 +167,7 @@ Este proyecto sirvió como laboratorio para resolver retos de ingeniería real:
   - **Solución:** Optimización de carga de modelos usando patrón Singleton (cargar `.pkl` fuera de la clase de la vista) para evitar I/O de disco en cada petición HTTP.
 
 - **Reto:** Persistencia de imágenes en despliegue automatizado.
-  - **Solución:** Script personalizado que inyecta imágenes binarias a la base de datos PostgreSQL leyendo desde una carpeta temporal, permitiendo portabilidad total del proyecto.
+  - **Solución:** `ImageField` guarda en PostgreSQL la ruta relativa del archivo, no el binario. Los archivos físicos viven en `MEDIA_ROOT` (`media/criaturas/`), lo que permite portabilidad total del proyecto.
 
 ---
 

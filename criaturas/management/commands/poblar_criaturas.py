@@ -38,8 +38,13 @@ class Command(BaseCommand):
                         except IndexError:
                             nombre_archivo_imagen = None
 
-                        # 2. Obtener o Crear la Criatura (Sin la imagen aún)
-                        obj, created = Criatura.objects.get_or_create(
+                        # 2. Lógica de DATOS: sincronizar stats desde el CSV.
+                        # update_or_create crea o actualiza las columnas de stats
+                        # (HP, ataque, etc.) para que el CSV sea la fuente de verdad.
+                        # El campo `imagen` NO va en `defaults`: la imagen se gestiona
+                        # por separado en la lógica de archivos (punto 3) y no debe
+                        # tocarse en cada corrida.
+                        obj, created = Criatura.objects.update_or_create(
                             nombre=nombre_raw,
                             defaults={
                                 'tipo_primario': tipo_primario_raw,
@@ -52,26 +57,15 @@ class Command(BaseCommand):
                             }
                         )
 
-                        accion = "✅ Creada" if created else "sus Actualizada"
+                        accion = "✅ Creada" if created else "🔄 Actualizada"
 
-                        # 3. [NUEVO] Lógica de Procesamiento de Imagen
-                        # Solo intentamos guardar imagen si el CSV tiene un nombre y la criatura no tiene foto todavía
-                        # (O si quieres forzar actualización, quita el 'if not obj.imagen')
-                        if nombre_archivo_imagen:
-                            ruta_completa_imagen = os.path.join(carpeta_imagenes, nombre_archivo_imagen)
-
-                            # Verificamos que el archivo físico exista en la carpeta imagenes_semilla
-                            if os.path.exists(ruta_completa_imagen):
-                                # Abrimos el archivo en modo binario de lectura ('rb')
-                                with open(ruta_completa_imagen, 'rb') as f:
-                                    # MAGIA DE DJANGO:
-                                    # obj.imagen.save(nombre, contenido, save=True)
-                                    # Django tomará este archivo, lo copiará a la carpeta MEDIA_ROOT/criaturas/
-                                    # y guardará la referencia en la base de datos.
-                                    obj.imagen.save(nombre_archivo_imagen, File(f), save=True)
-                                    accion += " con Imagen"
-                            else:
-                                self.stdout.write(self.style.WARNING(f'   ⚠️  Imagen no encontrada en disco: {nombre_archivo_imagen}'))
+                        # 3. Lógica de ARCHIVO: asociar imagen solo si falta.
+                        # Desacople: la lógica de datos (update_or_create) nunca
+                        # referencia el campo `imagen`, y esta lógica nunca toca
+                        # los stats. Separadas a propósito para que la protección
+                        # contra duplicados de imagen sea independiente de la
+                        # sincronización de datos.
+                        self._procesar_imagen(obj, nombre_archivo_imagen, carpeta_imagenes)
 
                         self.stdout.write(self.style.SUCCESS(f'{accion}: {nombre_raw}'))
 
@@ -82,3 +76,27 @@ class Command(BaseCommand):
 
         except FileNotFoundError:
             self.stdout.write(self.style.ERROR('❌ Error: No se encuentra criaturas.csv'))
+
+    def _procesar_imagen(self, obj, nombre_archivo_imagen, carpeta_imagenes):
+        """Asocia una imagen a la criatura SOLO si aún no tiene una.
+
+        Protección contra duplicados: si el modelo ya tiene imagen asociada,
+        no se llama a .save(), evitando que Django genere copias
+        (img_1.png, img_2.png, ...) que saturan el disco.
+        """
+        if not nombre_archivo_imagen:
+            return
+
+        # Si ya hay imagen en la BD (nombre o archivo), no duplicar.
+        if obj.imagen and obj.imagen.name:
+            return
+
+        ruta_completa_imagen = os.path.join(carpeta_imagenes, nombre_archivo_imagen)
+        if not os.path.exists(ruta_completa_imagen):
+            self.stdout.write(self.style.WARNING(f'   ⚠️  Imagen no encontrada en disco: {nombre_archivo_imagen}'))
+            return
+
+        with open(ruta_completa_imagen, 'rb') as f:
+            # obj.imagen.save(nombre, contenido, save=True) copia el archivo
+            # a MEDIA_ROOT/criaturas/ y guarda la referencia en la BD.
+            obj.imagen.save(nombre_archivo_imagen, File(f), save=True)
