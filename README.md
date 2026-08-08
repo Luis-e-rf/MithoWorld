@@ -1,178 +1,36 @@
-# 🐉 MithoWorld: Universo de Criaturas con IA
+# 🐉 MithoWorld 2.0 — En Desarrollo Activo (rama `v2-architecture`)
 
-![Estado](https://img.shields.io/badge/Estado-En_Producción-success)
-![Docker](https://img.shields.io/badge/Docker-Enabled-blue)
-![Django](https://img.shields.io/badge/Backend-Django_Rest_Framework-green)
-![IA](https://img.shields.io/badge/IA-Scikit_Learn-orange)
+![Estado](https://img.shields.io/badge/Estado-En_Desarrollo-yellow)
+![Tests](https://img.shields.io/badge/Tests-pytest--django-blue)
+![Arquitectura](https://img.shields.io/badge/Arquitectura-Monolito_Modular-orange)
 
-Una plataforma web Full Stack que combina gestión de datos, visualización y predicción de combates mediante Machine Learning. El proyecto simula un universo de criaturas mitológicas donde una IA predice ganadores de batallas basándose en estadísticas y reglas elementales.
+> ⚠️ Esta rama está en desarrollo activo. Para la versión estable y en producción, ver la rama [`main`](https://github.com/Luis-e-rf/MithoWorld/tree/main).
 
-🔗 **Demo en vivo:** [https://mithoworld.yurack.com](https://mithoworld.yurack.com)
+## ¿Qué es esta rama?
 
-## 📸 Capturas de Pantalla
+Esta rama comprende la migración de un proyecto con ML predictivo (el Oráculo, que compara dos criaturas) hacia un motor de batallas RPG completo. La visión objetivo es que el sistema tenga en cuenta todos los stats de las criaturas, use esos combates para alimentar predicciones más precisas, permita consultar KPIs a través de dashboards publicados en Power BI, e integre IA para narrar las batallas y responder consultas sobre la base de datos.
 
-|                    Página Principal                    |               Sistema de Batallas (Oráculo IA)               |
-| :----------------------------------------------------: | :----------------------------------------------------------: |
-| ![Página principal de MithoWorld](static/img/home.png) | ![Sistema de predicción de batallas](static/img/batalla.png) |
+Es la evolución natural del proyecto: de predecir qué criatura es mejor que otra (el Oráculo actual) a que efectivamente combatan, y usar esos resultados reales para alimentar modelos predictivos más precisos.
 
----
+*(Esta sección describe el objetivo de la migración, no el estado actual — ver abajo qué está implementado hoy.)*
 
-## 🚀 Características Principales
+## Estado actual
 
-### 1. Gestión de Datos y API
+- El plan de migración completo está documentado en [`ARCHITECTURE_MIGRATION.md`](./ARCHITECTURE_MIGRATION.md): contexto, estado actual de los servicios, arquitectura destino, y el paso a paso de ejecución.
+- Se implementó testing automatizado para las apps `criaturas` y `oraculo`, que permitió detectar y corregir bugs reales de idempotencia.
+- Se corrigió documentación técnica que no reflejaba el comportamiento real del sistema.
 
-- **API RESTful:** Construida con Django Rest Framework (DRF) para servir datos a cualquier cliente.
-- **Base de Datos:** PostgreSQL corriendo en contenedor Docker.
-- **Automatización:** Script personalizado (`BaseCommand`) que puebla la BD desde un CSV. Las imágenes se gestionan con `ImageField` de Django: PostgreSQL registra únicamente la ruta relativa del archivo (`VARCHAR`), y el binario físico reside en el sistema de archivos local dentro de `MEDIA_ROOT` (`media/criaturas/`).
+## Qué cambió respecto a v1
 
-### 2. Inteligencia Artificial (El Oráculo)
+- **Pruebas automatizadas** que detectan bugs al ejecutar los scripts de creación de criaturas o del oráculo (antes no existía cobertura de tests).
+- El script de carga de criaturas iniciales ahora **sincroniza los cambios** del CSV en cada ejecución, en vez de solo insertar una vez y quedar desactualizado.
+- **Documentación específica y clara** de la migración, que incluye también el alcance completo del proyecto.
 
-- **Generación de Datos Sintéticos:** Script que simula 10,000 batallas aplicando lógica de negocio (ventajas de tipos, stats + factor aleatorio).
-- **Modelo de ML:** Entrenamiento de un algoritmo **Random Forest** (Scikit-Learn) con un 93-98% de precisión.
-- **Persistencia:** Carga de modelos `.pkl` en memoria (Singleton) para predicciones de alta velocidad en tiempo real.
+## Próximos pasos
 
-### 3. Frontend & UI
+Mover la app `criaturas` a `apps/game`, que comprende la creación del battle engine.
 
-- **Single Page Application (SPA) feel:** Renderizado dinámico con Vanilla JavaScript (sin recargas).
-- **Diseño Glassmorphism:** CSS moderno, responsivo y minimalista.
+## Ver también
 
-### 4. Infraestructura & DevOps
-
-- **Servidor:** Ubuntu Server.
-- **Proxy & Seguridad:** Gunicorn + Cloudflare Tunnel (Zero Trust).
-- **Almacenamiento:** WhiteNoise para estáticos y gestión de Media Files.
-
----
-
-```mermaid
-graph TD
-    User((Usuario Internet)) -->|HTTPS| CF[Cloudflare Tunnel]
-    CF -->|Zero Trust| Server[Ubuntu Server VPS]
-
-    subgraph "Infraestructura Dockerizada"
-        Server -->|Proxy| Guni[Gunicorn WSGI]
-        Guni -->|Ejecuta| Django[Django Backend API]
-        Django <-->|Lee/Escribe| DB[(PostgreSQL 16)]
-
-        subgraph "Módulo IA"
-            Django -->|Consulta| Model[[Modelo Random Forest .pkl]]
-            Note[Patrón Singleton en Memoria] -.-> Model
-        end
-    end
-
-    subgraph "Business Intelligence"
-        PBI[Power BI Desktop] -->|Túnel SSH| DB
-    end
-```
-
-## 🛠️ Stack Tecnológico
-
-| Área              | Tecnologías                               |
-| ----------------- | ----------------------------------------- |
-| **Backend**       | Python, Django 5, DRF                     |
-| **Frontend**      | HTML5, CSS3, JavaScript (ES6+)            |
-| **Base de Datos** | PostgreSQL 16                             |
-| **DevOps**        | Docker, Docker Compose, Gunicorn, Systemd |
-| **Data Science**  | Pandas, Scikit-Learn, Joblib              |
-| **Cloud/Redes**   | Cloudflare Zero Trust, SSH Tunnels        |
-| **BI**            | Power BI (Conectado vía túnel SSH)        |
-
----
-
-## ⚡ Instalación y Despliegue Local
-
-1. **Clonar el repositorio:**
-   ```bash
-   git clone git@github.com:Luis-e-rf/MithoWorld.git
-   cd MithoWorld
-   ```
-2. **Configurar entorno virtual:**
-   ```bash
-   uv sync
-   source .venv/bin/activate
-   ```
-3. **Levantar Base de Datos (Docker):**
-
-   Asegúrate de tener Docker Desktop o Docker Engine corriendo.
-
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Variables de entorno:**
-
-   Crea un archivo .env en la raíz del proyecto basándote en este ejemplo:
-
-   ```bash
-   SECRET_KEY=tu_clave_secreta_django
-   DB_NAME=mithoworld_db
-   DB_USER=mitho_user
-   DB_PASSWORD=tu_password_segura
-   DEBUG=True
-   ```
-
-5. **Inicializar datos (ETL y Migraciones):**
-
-   Ejecuta estos comandos en orden para construir la DB y la IA:
-
-   ```bash
-   uv run python manage.py migrate
-   uv run python manage.py poblar_criaturas  # Lee CSV y carga imágenes
-   uv run python manage.py simular_batallas  # Genera dataset histórico
-   uv run python manage.py entrenar_oraculo  # Entrena el modelo Random Forest
-   ```
-
-6. **Correr servidor de desarrollo:**
-   ```bash
-   uv run python manage.py runserver
-   ```
-
-Accede a: http://localhost:8000
-
----
-
-## 🏗️ Arquitectura de Despliegue (Producción)
-
-El proyecto está diseñado para desplegarse en un VPS Ubuntu utilizando la siguiente pila:
-
-- **Gunicorn:** Servidor de aplicaciones WSGI (gestionado por Systemd).
-- **WhiteNoise:** Para servir archivos estáticos comprimidos eficientemente.
-- **Cloudflare Tunnel:** Para exponer el servicio local (`localhost:8000`) a internet mediante HTTPS seguro sin abrir puertos en el firewall.
-
-### Comandos de Mantenimiento en Producción
-
-```bash
-# Actualizar código
-git pull origin main
-
-# Aplicar cambios en estáticos (CSS/JS)
-python manage.py collectstatic
-
-# Reiniciar aplicación
-sudo systemctl restart mithoworld
-```
-
----
-
-## 🧠 Bitácora de Aprendizaje (Challenges & Soluciones)
-
-Este proyecto sirvió como laboratorio para resolver retos de ingeniería real:
-
-- **Reto:** Conectar Power BI local a una base de datos remota protegida en Docker.
-
-  - **Solución:** Implementación de un Túnel SSH (`ssh -L`) para exponer el puerto de la BD de forma segura a localhost sin abrir puertos externos.
-
-- **Reto:** Latencia alta en predicciones de IA.
-
-  - **Solución:** Optimización de carga de modelos usando patrón Singleton (cargar `.pkl` fuera de la clase de la vista) para evitar I/O de disco en cada petición HTTP.
-
-- **Reto:** Persistencia de imágenes en despliegue automatizado.
-  - **Solución:** `ImageField` guarda en PostgreSQL la ruta relativa del archivo, no el binario. Los archivos físicos viven en `MEDIA_ROOT` (`media/criaturas/`), lo que permite portabilidad total del proyecto.
-
----
-
-## ✒️ Autor
-
-**Luis Ernesto Rodriguez Felacio (Yurack)** - [LinkedIn](https://www.linkedin.com/in/luis-ernesto-rodriguez-felacio/)
-
-_Ingeniero Informático & Especialista en IA_
+- Plan de migración detallado: [`ARCHITECTURE_MIGRATION.md`](./ARCHITECTURE_MIGRATION.md)
+- Versión en producción: rama [`main`](https://github.com/Luis-e-rf/MithoWorld/tree/main)
