@@ -23,7 +23,7 @@ Una plataforma web Full Stack que combina gestión de datos, visualización y pr
 
 - **API RESTful:** Construida con Django Rest Framework (DRF) para servir datos a cualquier cliente.
 - **Base de Datos:** PostgreSQL corriendo en contenedor Docker.
-- **Automatización:** Script personalizado (`BaseCommand`) que puebla la BD desde un CSV e inyecta imágenes binarias automáticamente.
+- **Automatización:** Script personalizado (`BaseCommand`) que puebla la BD desde un CSV y asocia la imagen correspondiente a cada criatura. Las imágenes se almacenan en el sistema de archivos (`MEDIA_ROOT`); Django guarda únicamente la ruta relativa en PostgreSQL (`ImageField`), no el binario.
 
 ### 2. Inteligencia Artificial (El Oráculo)
 
@@ -52,7 +52,8 @@ graph TD
     subgraph "Infraestructura Dockerizada"
         Server -->|Proxy| Guni[Gunicorn WSGI]
         Guni -->|Ejecuta| Django[Django Backend API]
-        Django <-->|Lee/Escribe| DB[(PostgreSQL 16)]
+        Django <-->|Lee/Escribe registros| DB[(PostgreSQL 16)]
+        Django <-->|Lee/Escribe archivos| Media[(MEDIA_ROOT - Imágenes)]
 
         subgraph "Módulo IA"
             Django -->|Consulta| Model[[Modelo Random Forest .pkl]]
@@ -60,8 +61,8 @@ graph TD
         end
     end
 
-    subgraph "Business Intelligence"
-        PBI[Power BI Desktop] -->|Túnel SSH| DB
+    subgraph "Business Intelligence (prueba de concepto, no publicado)"
+        PBI[Power BI Desktop] -.->|Túnel SSH - conexión de prueba| DB
     end
 ```
 
@@ -75,7 +76,7 @@ graph TD
 | **DevOps**        | Docker, Docker Compose, Gunicorn, Systemd |
 | **Data Science**  | Pandas, Scikit-Learn, Joblib              |
 | **Cloud/Redes**   | Cloudflare Zero Trust, SSH Tunnels        |
-| **BI**            | Power BI (Conectado vía túnel SSH)        |
+| **BI**            | Power BI — prueba de conectividad vía túnel SSH (sin dashboard publicado) |
 
 ---
 
@@ -96,7 +97,7 @@ graph TD
    Asegúrate de tener Docker Desktop o Docker Engine corriendo.
 
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 4. **Variables de entorno:**
@@ -108,7 +109,7 @@ graph TD
    DB_NAME=mithoworld_db
    DB_USER=mitho_user
    DB_PASSWORD=tu_password_segura
-   DEBUG=True
+   DEBUG=False  # Usa True solo en desarrollo local; nunca en producción
    ```
 
 5. **Inicializar datos (ETL y Migraciones):**
@@ -117,9 +118,9 @@ graph TD
 
    ```bash
    uv run python manage.py migrate
-   uv run python manage.py poblar_criaturas  # Lee CSV y carga imágenes
-   uv run python manage.py simular_batallas  # Genera dataset histórico
-   uv run python manage.py entrenar_oraculo  # Entrena el modelo Random Forest
+   uv run python manage.py poblar_criaturas  # Lee CSV y asocia imágenes
+   uv run python manage.py simular_batallas  # Genera dataset histórico
+   uv run python manage.py entrenar_oraculo  # Entrena el modelo Random Forest
    ```
 
 6. **Correr servidor de desarrollo:**
@@ -133,7 +134,7 @@ Accede a: http://localhost:8000
 
 ## 🏗️ Arquitectura de Despliegue (Producción)
 
-El proyecto está diseñado para desplegarse en un VPS Ubuntu utilizando la siguiente pila:
+El proyecto está desplegado en un servidor Ubuntu local (expuesto mediante Cloudflare Tunnel) utilizando la siguiente pila:
 
 - **Gunicorn:** Servidor de aplicaciones WSGI (gestionado por Systemd).
 - **WhiteNoise:** Para servir archivos estáticos comprimidos eficientemente.
@@ -160,14 +161,14 @@ Este proyecto sirvió como laboratorio para resolver retos de ingeniería real:
 
 - **Reto:** Conectar Power BI local a una base de datos remota protegida en Docker.
 
-  - **Solución:** Implementación de un Túnel SSH (`ssh -L`) para exponer el puerto de la BD de forma segura a localhost sin abrir puertos externos.
+  - **Solución:** Implementación de un Túnel SSH (`ssh -L`) para exponer el puerto de la BD de forma segura a localhost sin abrir puertos externos. *Esto quedó como una prueba de conectividad — no se llegó a publicar un dashboard con esta conexión.*
 
 - **Reto:** Latencia alta en predicciones de IA.
 
   - **Solución:** Optimización de carga de modelos usando patrón Singleton (cargar `.pkl` fuera de la clase de la vista) para evitar I/O de disco en cada petición HTTP.
 
 - **Reto:** Persistencia de imágenes en despliegue automatizado.
-  - **Solución:** Script personalizado que inyecta imágenes binarias a la base de datos PostgreSQL leyendo desde una carpeta temporal, permitiendo portabilidad total del proyecto.
+  - **Solución:** Script personalizado (`poblar_criaturas`) que asocia cada criatura con su imagen desde una carpeta semilla. Django almacena solo la ruta relativa en PostgreSQL (`ImageField`); el archivo físico vive en `MEDIA_ROOT`. Esto evita hinchar la base de datos con binarios, y la portabilidad del proyecto se logra moviendo la carpeta de media junto con el volumen de datos, no embebiendo imágenes en la BD.
 
 ---
 
