@@ -1,29 +1,25 @@
-# Versión del formato del archivo docker-compose
-version: '3.8'
-
-# Aquí definimos todos nuestros servicios (contenedores)
 services:
-  # Nombramos nuestro primer servicio 'db' (de database)
   db:
-    # La imagen de Docker que usaremos. En este caso, PostgreSQL versión 13.
-    image: postgres:16
-    # Un nombre amigable para el contenedor que se va a crear
-    container_name: postgres_db_mithoworld
-    # Variables de entorno que se pasarán al contenedor de PostgreSQL
-    # Esto es crucial para configurar la base de datos al iniciarla
+    image: postgres:16-alpine
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    container_name: mithoworld_db_v2
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME}          # Nombre de la base de datos
-      POSTGRES_USER: ${DB_USER}        # Usuario para la base de datos
-      POSTGRES_PASSWORD: ${DB_PASSWORD}  # Contraseña para el usuario
-    # 'volumes' asegura que los datos de tu base de datos persistan
-    # incluso si el contenedor se elimina o se reinicia.
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    # Mapea el puerto 5432 del contenedor al puerto 5432 de tu servidor Ubuntu
-    # para que Django pueda conectarse.
+      # ⚠️ Solo aplica en la PRIMERA inicialización del volumen. Si cambiás
+      # DB_PASSWORD después, hay que `docker volume rm mitho_pg_data_v2`
+      # (destruye los datos) o hacer ALTER ROLE manualmente.
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5433:5432"
+      - "5432:5432"
+    volumes:
+      - mitho_pg_data:/var/lib/postgresql/data
 
-# Define el volumen que declaramos arriba.
 volumes:
-  postgres_data:
+  mitho_pg_data:
+    name: mitho_pg_data_v2

@@ -1,179 +1,151 @@
-# 🐉 MithoWorld: Universo de Criaturas con IA
+# 🐉 MithoWorld V2.0: Battle Engine & AI Predictive Analytics
+![Estado](https://img.shields.io/badge/Estado-En_Producción_(GCP)-success)
+![Cloud](https://img.shields.io/badge/Cloud-Google_Cloud_Platform-blue)
+![Docker](https://img.shields.io/badge/Docker-Hardened_Containers-2496ED)
+![Tests](https://img.shields.io/badge/Tests-10%2F10_Passed-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![Django](https://img.shields.io/badge/Backend-Django_5.2_%7C_DRF-092E20)
+![Package Manager](https://img.shields.io/badge/Package_Manager-uv-DE5FE9)
 
-![Estado](https://img.shields.io/badge/Estado-En_Producción-success)
-![Docker](https://img.shields.io/badge/Docker-Enabled-blue)
-![Django](https://img.shields.io/badge/Backend-Django_Rest_Framework-green)
-![IA](https://img.shields.io/badge/IA-Scikit_Learn-orange)
+Plataforma Full Stack orientada a Ingeniería de Datos y Machine Learning. El sistema implementa un motor de combate RPG por turnos y un oráculo predictivo basado en Machine Learning, desplegado en infraestructura Cloud desacoplada y protegido perimetralmente con arquitectura Zero Trust.
 
-Una plataforma web Full Stack que combina gestión de datos, visualización y predicción de combates mediante Machine Learning. El proyecto simula un universo de criaturas mitológicas donde una IA predice ganadores de batallas basándose en estadísticas y reglas elementales.
+🔗 **Demo en Producción:** [https://mithoworld.yurack.com](https://mithoworld.yurack.com)  
+📄 **Blueprint de Arquitectura Modular:** Consulta [`ARCHITECTURE_MIGRATION.md`](ARCHITECTURE_MIGRATION.md) para el plan de migración por dominios (`apps/game`, `apps/ml`, `apps/analytics`, `apps/ai`).
 
-🔗 **Demo en vivo:** [https://mithoworld.yurack.com](https://mithoworld.yurack.com)
+---
 
-## 📸 Capturas de Pantalla
+## 📸 Interfaz de Usuario
 
-|                    Página Principal                    |               Sistema de Batallas (Oráculo IA)               |
-| :----------------------------------------------------: | :----------------------------------------------------------: |
+| Galería de Criaturas | Oráculo Predictivo de Batallas |
+| :-------------------: | :-----------------------------: |
 | ![Página principal de MithoWorld](static/img/home.png) | ![Sistema de predicción de batallas](static/img/batalla.png) |
 
 ---
 
-## 🚀 Características Principales
-
-### 1. Gestión de Datos y API
-
-- **API RESTful:** Construida con Django Rest Framework (DRF) para servir datos a cualquier cliente.
-- **Base de Datos:** PostgreSQL corriendo en contenedor Docker.
-- **Automatización:** Script personalizado (`BaseCommand`) que puebla la BD desde un CSV y asocia la imagen correspondiente a cada criatura. Las imágenes se almacenan en el sistema de archivos (`MEDIA_ROOT`); Django guarda únicamente la ruta relativa en PostgreSQL (`ImageField`), no el binario.
-
-### 2. Inteligencia Artificial (El Oráculo)
-
-- **Generación de Datos Sintéticos:** Script que simula 10,000 batallas aplicando lógica de negocio (ventajas de tipos, stats + factor aleatorio).
-- **Modelo de ML:** Entrenamiento de un algoritmo **Random Forest** (Scikit-Learn) con un 93-98% de precisión.
-- **Persistencia:** Carga de modelos `.pkl` en memoria (Singleton) para predicciones de alta velocidad en tiempo real.
-
-### 3. Frontend & UI
-
-- **Single Page Application (SPA) feel:** Renderizado dinámico con Vanilla JavaScript (sin recargas).
-- **Diseño Glassmorphism:** CSS moderno, responsivo y minimalista.
-
-### 4. Infraestructura & DevOps
-
-- **Servidor:** Ubuntu Server.
-- **Proxy & Seguridad:** Gunicorn + Cloudflare Tunnel (Zero Trust).
-- **Almacenamiento:** WhiteNoise para estáticos y gestión de Media Files.
-
----
+## 🏗️ Arquitectura de la Solución (GCP + Zero Trust)
 
 ```mermaid
 graph TD
-    User((Usuario Internet)) -->|HTTPS| CF[Cloudflare Tunnel]
-    CF -->|Zero Trust| Server[Ubuntu Server VPS]
+    User((Usuario / Evaluador)) -->|HTTPS / TLS| CF[Cloudflare Edge Network]
+    CF -->|Zero Trust Tunnel| VM[GCP Compute Engine: e2-micro us-central1]
 
-    subgraph "Infraestructura Dockerizada"
-        Server -->|Proxy| Guni[Gunicorn WSGI]
-        Guni -->|Ejecuta| Django[Django Backend API]
-        Django <-->|Lee/Escribe registros| DB[(PostgreSQL 16)]
-        Django <-->|Lee/Escribe archivos| Media[(MEDIA_ROOT - Imágenes)]
+    subgraph VM ["GCP Compute Engine (Always Free Tier)"]
+        subgraph OS ["Host Linux (Ubuntu 24.04 LTS)"]
+            Swap[Swapfile 2GB - OOM Protection]
+        end
 
-        subgraph "Módulo IA"
-            Django -->|Consulta| Model[[Modelo Random Forest .pkl]]
-            Note[Patrón Singleton en Memoria] -.-> Model
+        subgraph Docker ["Docker Stack (Red Interna Aislada: mitho_net)"]
+            CFT[cloudflared connector] -->|Proxy HTTP| Guni[Gunicorn WSGI: 2 Workers / 2 Threads]
+            Guni --> Django[Django 5.2 API Backend]
+
+            Django <-->|Lectura/Escritura| DB[(PostgreSQL 16 Alpine)]
+            Django <-->|Media Storage| Vol[(Volumen mitho_media_data)]
+
+            subgraph ML ["Módulo Machine Learning"]
+                Django -->|Inferencia| Model[[Random Forest .pkl]]
+                Note[Lazy Loading + Fallback 503 + Clamping] -.-> Model
+            end
         end
     end
 
-    subgraph "Business Intelligence (prueba de concepto, no publicado)"
-        PBI[Power BI Desktop] -.->|Túnel SSH - conexión de prueba| DB
+    subgraph Analytics ["Roadmap Analytics Engineering (apps/analytics)"]
+        DB -.->|ELT Batch| BQ[(Google BigQuery)]
+        BQ -->|Marts Star Schema via dbt| PBI[Power BI Desktop]
     end
 ```
 
+---
+
+## 🚀 Capacidades de Ingeniería
+
+### 1. Backend & Resiliencia
+- **Contenedores Endurecidos:** Despliegue con Docker Compose en red interna sin puertos expuestos al exterior; ejecución bajo usuario de sistema sin privilegios (`appuser`).
+- **Idempotencia de Datos y Archivos:** Script de seed (`poblar_criaturas`) con sincronización defensiva (`update_or_create`) desacoplada del sistema de archivos para prevenir duplicación de binarios en disco.
+- **Gestión Moderna de Dependencias:** Proyecto gobernado estrictamente con `uv` (`pyproject.toml` y `uv.lock`), garantizando compilaciones reproducibles y eliminando el uso de herramientas legadas.
+
+### 2. Machine Learning & Inferencia Defensiva
+- **Dataset Sintético:** Simulación vectorial de 10,000 enfrentamientos gobernados por lógica de ventajas elementales y dispersión estocástica.
+- **Modelo Predictivo:** Clasificador **Random Forest** (Scikit-Learn) con tasa de precisión del 93-98%.
+- **Carga Perezosa con Caché (Lazy Loading):** Los artefactos `.pkl` se cargan en memoria bajo demanda en la primera inferencia. Si los archivos binarios no están disponibles, el endpoint degrada controladamente respondiendo `HTTP 503 Service Unavailable` sin colapsar el proceso principal.
+- **Calibración de Probabilidades:** Salidas de `predict_proba` normalizadas y restringidas defensivamente en el intervalo cerrado $[0.0, 1.0]$.
+
+### 3. Suite de Pruebas Automatizadas
+- **10/10 Tests Unitarios y de Integración (`pytest-django`):**
+  - Validación de idempotencia estricta en base de datos y sistema de archivos (`tmp_path`).
+  - Pruebas de tolerancia a fallos del Oráculo ante ausencia de artefactos ML (`503`).
+  - Validación de consistencia probabilística y límites de respuesta.
+
+---
+
 ## 🛠️ Stack Tecnológico
 
-| Área              | Tecnologías                               |
-| ----------------- | ----------------------------------------- |
-| **Backend**       | Python, Django 5, DRF                     |
-| **Frontend**      | HTML5, CSS3, JavaScript (ES6+)            |
-| **Base de Datos** | PostgreSQL 16                             |
-| **DevOps**        | Docker, Docker Compose, Gunicorn, Systemd |
-| **Data Science**  | Pandas, Scikit-Learn, Joblib              |
-| **Cloud/Redes**   | Cloudflare Zero Trust, SSH Tunnels        |
-| **BI**            | Power BI — prueba de conectividad vía túnel SSH (sin dashboard publicado) |
+| Dominio | Tecnologías |
+| :--- | :--- |
+| **Backend & API** | Python 3.12, Django 5.2, Django REST Framework, Gunicorn, WhiteNoise |
+| **Entorno & Paquetes** | uv (Astral) |
+| **Base de Datos** | PostgreSQL 16 (Dockerizado) |
+| **Machine Learning** | Scikit-Learn, Pandas, NumPy, Joblib |
+| **Testing** | pytest, pytest-django |
+| **Infraestructura Cloud** | Google Cloud Platform (Compute Engine `e2-micro`), Ubuntu 24.04 LTS |
+| **Networking & Seguridad** | Cloudflare Zero Trust (Túneles cifrados salientes sin apertura de puertos) |
+| **Frontend** | Vanilla JavaScript (ES6+), CSS3 Glassmorphism |
 
 ---
 
-## ⚡ Instalación y Despliegue Local
+## ⚡ Guía de Ejecución Local
 
-1. **Clonar el repositorio:**
-   ```bash
-   git clone git@github.com:Luis-e-rf/MithoWorld.git
-   cd MithoWorld
-   ```
-2. **Configurar entorno virtual:**
-   ```bash
-   uv sync
-   source .venv/bin/activate
-   ```
-3. **Levantar Base de Datos (Docker):**
-
-   Asegúrate de tener Docker Desktop o Docker Engine corriendo.
-
-   ```bash
-   docker compose up -d
-   ```
-
-4. **Variables de entorno:**
-
-   Crea un archivo .env en la raíz del proyecto basándote en este ejemplo:
-
-   ```bash
-   SECRET_KEY=tu_clave_secreta_django
-   DB_NAME=mithoworld_db
-   DB_USER=mitho_user
-   DB_PASSWORD=tu_password_segura
-   DEBUG=False  # Usa True solo en desarrollo local; nunca en producción
-   ```
-
-5. **Inicializar datos (ETL y Migraciones):**
-
-   Ejecuta estos comandos en orden para construir la DB y la IA:
-
-   ```bash
-   uv run python manage.py migrate
-   uv run python manage.py poblar_criaturas  # Lee CSV y asocia imágenes
-   uv run python manage.py simular_batallas  # Genera dataset histórico
-   uv run python manage.py entrenar_oraculo  # Entrena el modelo Random Forest
-   ```
-
-6. **Correr servidor de desarrollo:**
-   ```bash
-   uv run python manage.py runserver
-   ```
-
-Accede a: http://localhost:8000
-
----
-
-## 🏗️ Arquitectura de Despliegue (Producción)
-
-El proyecto está desplegado en un servidor Ubuntu local (expuesto mediante Cloudflare Tunnel) utilizando la siguiente pila:
-
-- **Gunicorn:** Servidor de aplicaciones WSGI (gestionado por Systemd).
-- **WhiteNoise:** Para servir archivos estáticos comprimidos eficientemente.
-- **Cloudflare Tunnel:** Para exponer el servicio local (`localhost:8000`) a internet mediante HTTPS seguro sin abrir puertos en el firewall.
-
-### Comandos de Mantenimiento en Producción
-
+### 1. Clonar el repositorio y configurar dependencias
 ```bash
-# Actualizar código
-git pull origin main
+git clone https://github.com/Luis-e-rf/MithoWorld.git
+cd MithoWorld
+uv sync
+```
 
-# Aplicar cambios en estáticos (CSS/JS)
-python manage.py collectstatic
+### 2. Levantar la base de datos local
+```bash
+docker compose up -d
+```
 
-# Reiniciar aplicación
-sudo systemctl restart mithoworld
+### 3. Variables de entorno (.env)
+Configura tu archivo `.env` en la raíz del proyecto:
+```bash
+SECRET_KEY=clave_secreta_local
+DEBUG=True
+DB_NAME=mithoworld_db
+DB_USER=mitho_user
+DB_PASSWORD=mitho_password
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+### 4. Inicializar datos y ejecutar pruebas
+```bash
+uv run python manage.py migrate
+uv run python manage.py poblar_criaturas
+uv run pytest
+uv run python manage.py runserver
 ```
 
 ---
 
-## 🧠 Bitácora de Aprendizaje (Challenges & Soluciones)
+## 🧠 Bitácora de Desafíos de Ingeniería
 
-Este proyecto sirvió como laboratorio para resolver retos de ingeniería real:
+- **Gestión de Recursos en Cómputo Restringido (GCP `e2-micro` / 1GB RAM):**
+  - *Desafío:* La combinación de Gunicorn, PostgreSQL y Scikit-learn provocaba riesgo de *OOM Kill* durante el arranque y consumo concurrente.
+  - *Solución:* Configuración de un archivo Swap de 2GB a nivel de kernel (`swappiness=20`) y acotamiento de Gunicorn a 2 workers con 2 hilos, controlando la huella de memoria por proceso.
 
-- **Reto:** Conectar Power BI local a una base de datos remota protegida en Docker.
+- **Fuga de Almacenamiento en Ingesta de Binarios:**
+  - *Desafío:* Re-ejecutar el script de población generaba copias duplicadas de archivos (`imagen_1.png`) saturando el disco.
+  - *Solución:* Desacople arquitectónico entre la actualización de atributos del modelo y la comprobación de existencia previa en el sistema de almacenamiento antes de invocar `obj.imagen.save()`.
 
-  - **Solución:** Implementación de un Túnel SSH (`ssh -L`) para exponer el puerto de la BD de forma segura a localhost sin abrir puertos externos. *Esto quedó como una prueba de conectividad — no se llegó a publicar un dashboard con esta conexión.*
-
-- **Reto:** Latencia alta en predicciones de IA.
-
-  - **Solución:** Optimización de carga de modelos usando patrón Singleton (cargar `.pkl` fuera de la clase de la vista) para evitar I/O de disco en cada petición HTTP.
-
-- **Reto:** Persistencia de imágenes en despliegue automatizado.
-  - **Solución:** Script personalizado (`poblar_criaturas`) que asocia cada criatura con su imagen desde una carpeta semilla. Django almacena solo la ruta relativa en PostgreSQL (`ImageField`); el archivo físico vive en `MEDIA_ROOT`. Esto evita hinchar la base de datos con binarios, y la portabilidad del proyecto se logra moviendo la carpeta de media junto con el volumen de datos, no embebiendo imágenes en la BD.
+- **Aislamiento de Red sin Exposición de Puertos:**
+  - *Desafío:* Exponer el stack de contenedores a internet sin abrir puertos 80/443 en el cortafuegos de la VPC ni requerir una dirección IP estática con costo adicional.
+  - *Solución:* Orquestación de un contenedor `cloudflared` dentro de la red interna de Docker, manteniendo PostgreSQL y Django accesibles únicamente a través del túnel cifrado saliente de Cloudflare.
 
 ---
 
 ## ✒️ Autor
 
-**Luis Ernesto Rodriguez Felacio (Yurack)** - [LinkedIn](https://www.linkedin.com/in/luis-ernesto-rodriguez-felacio/)
-
-_Ingeniero Informático & Especialista en IA_
+**Luis Ernesto Rodríguez Felacio**  
+*Ingeniero Informático & Especialista en Inteligencia Artificial*  
+[LinkedIn](https://www.linkedin.com/in/luis-ernesto-rodriguez-felacio/)
