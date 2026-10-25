@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     # Mis aplicaciones
     'apps.game',
     'apps.ml',
+    'apps.analytics',
+    'apps.ai',
 ]
 
 MIDDLEWARE = [

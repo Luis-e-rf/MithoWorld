@@ -18,16 +18,16 @@ docker ps
 ```
 Si no está corriendo (o si reiniciaste el servidor), levántalo:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-## 4 Levantar el Servidor Django
+## 4. Levantar el Servidor Django
 Para exponer la API en tu red local (y que sea accesible vía túnel o IP):
 ```bash
 uv run python manage.py runserver 0.0.0.0:8080
 ```
 
-## 6. URLs importantes
+## 5. URLs importantes
 * API Root: http://localhost:8080/api/criaturas/
 * Admin Panel: http://localhost:8080/admin/
 
