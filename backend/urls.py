@@ -5,7 +5,7 @@ from django.views.static import serve
 
 from django.conf import settings
 from apps.game.views import home, detalle_criatura
-from oraculo.views import arena_view
+from apps.ml.views import arena_view
 
 # Personalización del Admin
 admin.site.site_header = "Panel de Control MithoWorld"
@@ -18,7 +18,7 @@ urlpatterns = [
     path('arena/', arena_view, name='arena'),
     path('admin/', admin.site.urls),
     path('api/', include('apps.game.urls')),
-    path('api/oraculo/', include('oraculo.urls')),
+    path('api/oraculo/', include('apps.ml.urls')),
 ]
 
 # Servicio de archivos multimedia (/media/) en TODOS los entornos.

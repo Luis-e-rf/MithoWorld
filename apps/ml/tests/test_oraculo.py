@@ -4,7 +4,7 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 
-import oraculo.views as views
+import apps.ml.views as views
 from apps.game.models import Criatura
 
 
@@ -140,7 +140,7 @@ def test_oraculo_carga_modelos_una_sola_vez(client, criaturas_en_bd, monkeypatch
 
     def _carga_falsa(ruta):
         # 1ª llamada → modelo; 2ª llamada → encoder.
-        if "encoder" in ruta:
+        if "encoder" in str(ruta):
             return encoder
         return modelo
 
