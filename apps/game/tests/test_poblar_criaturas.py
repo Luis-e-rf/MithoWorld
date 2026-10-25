@@ -6,7 +6,7 @@ import pytest
 from django.core.management import call_command
 from django.test import override_settings
 
-from criaturas.models import Criatura
+from apps.game.models import Criatura
 
 ENCABEZADO_CSV = [
     "Nombre", "Tipo Primario", "Tipo Secundario", "Salud", "Ataque",

@@ -1,4 +1,4 @@
-# criaturas/urls.py
+# apps/game/urls.py
 """
 Configuración de URLs para la aplicación de criaturas.
 Este archivo define cómo se mapean las URLs a las vistas correspondientes

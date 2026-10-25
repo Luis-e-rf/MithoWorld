@@ -1,4 +1,4 @@
-# criaturas/views.py
+# apps/game/views.py
 from rest_framework import viewsets
 from .models import Criatura
 from .serializers import CriaturaSerializer
@@ -25,7 +25,7 @@ class CriaturaViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CriaturaSerializer
 
 
-# criaturas/views.py
+# apps/game/views.py
 
 def home(request):
     return render(request, 'index.html')

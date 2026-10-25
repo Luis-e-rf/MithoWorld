@@ -5,7 +5,7 @@ from django.urls import reverse
 from rest_framework import status
 
 import oraculo.views as views
-from criaturas.models import Criatura
+from apps.game.models import Criatura
 
 
 @pytest.fixture

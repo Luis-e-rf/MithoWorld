@@ -4,7 +4,7 @@ from django.urls import path, include, re_path
 from django.views.static import serve
 
 from django.conf import settings
-from criaturas.views import home, detalle_criatura
+from apps.game.views import home, detalle_criatura
 from oraculo.views import arena_view
 
 # Personalización del Admin
@@ -17,7 +17,7 @@ urlpatterns = [
     path('criatura/<int:id>/', detalle_criatura, name='detalle'),
     path('arena/', arena_view, name='arena'),
     path('admin/', admin.site.urls),
-    path('api/', include('criaturas.urls')),
+    path('api/', include('apps.game.urls')),
     path('api/oraculo/', include('oraculo.urls')),
 ]
 

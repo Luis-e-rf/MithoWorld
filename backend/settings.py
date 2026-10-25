@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
 
     # Mis aplicaciones
-    'criaturas',
+    'apps.game',
     'oraculo',
 ]
 
@@ -143,7 +143,19 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Asegura que el directorio exista en local/CI para evitar UserWarning de WhiteNoise en pytest
+os.makedirs(STATIC_ROOT, exist_ok=True)
+
+# Sintaxis oficial de Django 5.2 para almacenamiento de Media y Static con WhiteNoise
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 
 # Le dice a Django dónde buscar tus archivos de desarrollo
 STATICFILES_DIRS = [

@@ -7,7 +7,7 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from criaturas.models import Criatura
+from apps.game.models import Criatura
 from django.shortcuts import render
 # Importamos permisos de DRF
 from rest_framework.permissions import AllowAny

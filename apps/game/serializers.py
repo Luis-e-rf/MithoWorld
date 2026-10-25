@@ -1,4 +1,4 @@
-# criaturas/serializers.py
+# apps/game/serializers.py
 from rest_framework import serializers
 from .models import Criatura
 

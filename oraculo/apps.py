@@ -6,5 +6,5 @@ class OraculoConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     # Nombre de la app del oráculo (predicción de combates con IA).
     # Esta app no define modelos propios (models.py vacío), solo usa
-    # el modelo Criatura de la app 'criaturas' para las predicciones.
+    # el modelo Criatura de la app 'apps.game' (label 'criaturas') para las predicciones.
     name = 'oraculo'

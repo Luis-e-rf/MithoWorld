@@ -3,7 +3,7 @@ import os
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.core.files import File  # [NUEVO] Importante: Wrapper para manejar archivos en Django
-from criaturas.models import Criatura
+from apps.game.models import Criatura
 
 class Command(BaseCommand):
     help = 'Lee criaturas.csv e importa datos + imágenes a la base de datos'
