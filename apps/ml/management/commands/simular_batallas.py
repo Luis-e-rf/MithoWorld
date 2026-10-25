@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from criaturas.models import Criatura
+from apps.game.models import Criatura
 
 class Command(BaseCommand):
     help = 'Simula miles de batallas para generar un Dataset de entrenamiento'

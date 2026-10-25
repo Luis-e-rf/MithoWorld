@@ -1,13 +1,12 @@
 import logging
-import os
+from pathlib import Path
 import threading
 import joblib
 import pandas as pd
-from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from criaturas.models import Criatura
+from apps.game.models import Criatura
 from django.shortcuts import render
 # Importamos permisos de DRF
 from rest_framework.permissions import AllowAny
@@ -17,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Artefactos ML (Singleton). Se cargan una única vez por proceso via
 # get_oraculo_models(). MODELO_GANE / ENCODER_TIPOS siguen siendo globals
 # de módulo para poder ser mockeados directamente en los tests.
-_ruta_modelos = os.path.join(settings.BASE_DIR, 'oraculo', 'ml_models')
+_ruta_modelos = Path(__file__).resolve().parent / 'ml_models'
 MODELO_COMBATE = None
 ENCODER_TIPOS = None
 _ORACULO_CARGADO = False
@@ -51,8 +50,8 @@ def get_oraculo_models():
             return MODELO_COMBATE, ENCODER_TIPOS
 
         try:
-            MODELO_COMBATE = joblib.load(os.path.join(_ruta_modelos, 'modelo_combate.pkl'))
-            ENCODER_TIPOS = joblib.load(os.path.join(_ruta_modelos, 'encoder_tipos.pkl'))
+            MODELO_COMBATE = joblib.load(_ruta_modelos / 'modelo_combate.pkl')
+            ENCODER_TIPOS = joblib.load(_ruta_modelos / 'encoder_tipos.pkl')
         except FileNotFoundError as exc:
             logger.warning("Oráculo no disponible por falta de artefactos ML: %s", exc)
             MODELO_COMBATE = None

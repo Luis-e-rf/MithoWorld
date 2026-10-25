@@ -1,4 +1,4 @@
-# oraculo/urls.py
+# apps/ml/urls.py
 # Configuración de URLs para la app del oráculo (predicción de combates con IA)
 from django.urls import path
 from .views import PrediccionCombateView

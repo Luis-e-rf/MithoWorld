@@ -2,10 +2,22 @@ Complementa a ARCHITECTURE.md — ver ahí el contexto general del stack; este d
 
 # ARCHITECTURE_MIGRATION.md
 
-> **Estado:** PROPUESTA (Blueprint / ADR) — Paso 0, Misión 4
-> **Tipo:** Documento de diseño y plan de migración. **NO crea carpetas ni mueve código.**
+> **Estado:** EN EJECUCIÓN — Fases 1 y 2 completadas; scaffolding de `apps/analytics` y `apps/ai` activo.
+> **Tipo:** Blueprint, registro de ejecución y ADR del **Monolito Modular**.
 > **Rama:** `v2-architecture`
-> **Alcance:** Transición de la estructura plana actual (`criaturas/`, `oraculo/`) a un **Monolito Modular** con dominios bajo `apps/`.
+> **Alcance:** Transición desde la estructura plana original (`criaturas/`, `oraculo/`) hacia dominios bajo `apps/`.
+
+## 0. Estado de ejecución
+
+| Fase | Dominio | Estado | Evidencia |
+|---|---|---|---|
+| 1 | `apps/game` | Completada e integrada | `git mv criaturas apps/game`, `label = 'criaturas'`, imports y URLs actualizados, migraciones preservadas. |
+| 2 | `apps/ml` | Completada e integrada | `git mv oraculo apps/ml`, `label = 'oraculo'`, artefactos en `apps/ml/ml_models`, ruta de artefactos module-relative. |
+| 3 | `apps/analytics` | Scaffolding activo | App registrada, paquete `management/commands/` y `tests/` creados; ELT/BigQuery y marts pendientes. |
+| 4 | `apps/ai` | Scaffolding activo | App registrada, `services.py` documentado y paquete `tests/` creado; cliente LLM y MCP pendientes. |
+
+**Validación actual:** `manage.py check` sin issues, `makemigrations --dry-run` → `No changes detected`,
+`pytest` → **10 passed, 0 warnings**.
 
 ---
 
@@ -33,30 +45,34 @@ El **Monolito Modular** conserva la ventaja de despliegue del monolito (un solo
 proceso, un solo repo) mientras establece límites de responsabilidad claros por app,
 habilitando una futura migración progresiva a servicios si fuera necesario.
 
-> **Restricción del Paso 0:** este documento es el único entregable de esta misión.
-> La creación de `apps/` y los `git mv` quedan **fuera de alcance** y requieren
-> aprobación explícita (Paso futuro).
+> **Nota de ejecución:** el blueprint original (Paso 0) no movía código. Las Fases 1
+> y 2 ya fueron aprobadas y ejecutadas; este documento ahora registra también su estado
+> real. `apps/analytics` y `apps/ai` existen como scaffolding sin lógica de negocio.
 
 ---
 
-## 2. Mapeo Actual → Target
+## 2. Mapeo Origen → Target
 
-### 2.1 Tabla explícita de módulos/archivos HOY
+### 2.1 Mapeo histórico de módulos/archivos (estado previo a la migración)
 
-| Módulo/Archivo (HOY) | Contenido relevante | App destino | Justificación |
+> Las rutas de origen de esta tabla (`criaturas/`, `oraculo/`) ya no existen en el
+> árbol actual: fueron movidas en las Fases 1 y 2. La tabla se conserva como registro
+> del alcance y de las decisiones de destino.
+
+| Módulo/Archivo (origen histórico) | Contenido relevante | App destino | Justificación |
 |---|---|---|---|
 | `criaturas/models.py` | Modelo `Criatura` | `apps/game/` | Entidad central de reglas del juego (stats, tipos). |
-| `criaturas/migrations/0001_initial.py`, `0002_criatura_imagen.py` | Migraciones de `Criatura` | `apps/game/migrations/` (se mueven al final de la Fase 1) | Siguen al modelo; se preservan los `CreateModel` históricos con su label `criaturas` (ver Matriz de Riesgos). No se mueven hasta que el código esté migrado. |
+| `criaturas/migrations/0001_initial.py`, `0002_criatura_imagen.py` | Migraciones de `Criatura` | `apps/game/migrations/` (movidas en la Fase 1) | Siguen al modelo; se preservaron los `CreateModel` históricos con su label `criaturas` (ver Matriz de Riesgos). |
 | `criaturas/views.py` | `CriaturaViewSet`, `home`, `detalle_criatura` | `apps/game/views.py` | Vistas de exposición de datos del juego. |
 | `criaturas/serializers.py` | `CriaturaSerializer` | `apps/game/serializers.py` | Serialización API del dominio game. |
 | `criaturas/urls.py` | Rutas API de criaturas | `apps/game/urls.py` | Enrutamiento del dominio game. |
 | `criaturas/admin.py` | Registro admin | `apps/game/admin.py` | Panel administrativo del dominio. |
 | `criaturas/management/commands/poblar_criaturas.py` | Seed idempotente CSV+imágenes | `apps/game/management/commands/` | ETL de datos maestros del juego (fase inicial de ingesta). |
 | `criaturas/tests/` | Pruebas pytest-django (idempotencia, imágenes) | `apps/game/tests/` | Siguen al código que prueban. |
-| `oraculo/views.py` | `PrediccionCombateView`, `arena_view`, `get_oraculo_models` | `apps/ml/` (lógica de predicción) + `apps/game/` (arena UI) | La **predicción** es dominio ML; `arena_view` es una página del juego. Se recomienda separar: lógica ML a `apps/ml/services.py`, vista HTML a `apps/game/views.py`. |
-| `oraculo/urls.py` | Ruta `predecir/` | `apps/ml/urls.py` | API de predicción ML. |
-| `oraculo/ml_models/*.pkl` | `modelo_combate.pkl`, `encoder_tipos.pkl` | `apps/ml/artifacts/` | Artefactos entrenados (registry v1 local). |
-| `oraculo/management/commands/simular_batallas.py` | Generación de dataset sintético (10k batallas) | `apps/game/` o `apps/ml/` | Es **generación de datos históricos** del juego → `apps/game` (o `apps/analytics` como semilla del mart). Se decide en fase de diseño detallado. |
+| `oraculo/views.py` | `PrediccionCombateView`, `arena_view`, `get_oraculo_models` | `apps/ml/` (lógica de predicción y UI de arena) | La predicción es dominio ML. `arena_view` permanece en `apps/ml/views.py` por compatibilidad; su traslado a `apps/game` queda como deuda técnica. |
+| `oraculo/urls.py` | Ruta `predecir/` | `apps/ml/urls.py` | API de predicción ML; la URL pública `/api/oraculo/` se mantiene intacta. |
+| `oraculo/ml_models/*.pkl` | `modelo_combate.pkl`, `encoder_tipos.pkl` | `apps/ml/ml_models/` | Artefactos entrenados (registry v1 local); ruta resuelta de forma module-relative. |
+| `oraculo/management/commands/simular_batallas.py` | Generación de dataset sintético (10k batallas) | `apps/ml/management/commands/` | Permanece en ML hasta que `apps/analytics` implemente el pipeline ELT; la decisión de moverlo sigue abierta. |
 | `oraculo/management/commands/entrenar_oraculo.py` | Entrenamiento Random Forest | `apps/ml/` | Pipeline de entrenamiento (origen del registry). |
 | `oraculo/tests/` | Pruebas pytest-django (clamp, 503, estructura) | `apps/ml/tests/` | Siguen al código que prueban. |
 | `backend/settings.py` | `INSTALLED_APPS`, DB, media | `backend/settings.py` (sin mover) | Punto de configuración; solo cambia la lista de `INSTALLED_APPS`. |
@@ -65,15 +81,15 @@ habilitando una futura migración progresiva a servicios si fuera necesario.
 | `templates/`, `static/` | Frontend (HTML, JS, CSS) | `templates/`/`static/` (sin mover) | Compartidos entre dominios; se mantienen en la raíz (decisión de diseño). |
 
 > **Nota de decisión abierta (`simular_batallas`):** genera datos *del juego* (batallas)
-> que alimentan el ML. Para la migración se sugiere dejar el dataset en `apps/game` y
-> que `apps/ml/entrenar_oraculo.py` lo consuma como input. Debatir con CTO en el Paso 1.
+> que alimentan el ML. Hoy permanece en `apps/ml`; su posible traslado a
+> `apps/analytics` se decidirá al implementar el pipeline ELT.
 
-### 2.2 Dependencias cruzadas detectadas (para ordenar fases)
+### 2.2 Dependencias cruzadas históricas (análisis que ordenó las fases)
 
-- `oraculo/views.py` importa `criaturas.models.Criatura` → **`ml` depende de `game`**.
-- `backend/urls.py` importa vistas de `criaturas` y `oraculo`.
-- `criaturas` no importa `oraculo` → **`game` es el módulo de menor acoplamiento externo** (solo Django/DRF).
-- `oraculo/ml_models/*.pkl` se carga vía `settings.BASE_DIR` → la ruta física cambia al mover; ajustar `get_oraculo_models()`.
+- `oraculo/views.py` importaba `criaturas.models.Criatura` → **`ml` depende de `game`**.
+- `backend/urls.py` importaba vistas de `criaturas` y `oraculo`.
+- `criaturas` no importaba `oraculo` → **`game` es el módulo de menor acoplamiento externo** (solo Django/DRF).
+- `oraculo/ml_models/*.pkl` se cargaba vía `settings.BASE_DIR` → la ruta se ajustó a `Path(__file__).parent / 'ml_models'` al mover la app.
 
 **Conclusión de orden:** `game` (menor riesgo) → `ml` (depende de `game`) → `analytics` (futuro, a partir de datos de `game`) → `ai` (futuro, consume `game` + `ml`).
 
@@ -81,33 +97,37 @@ habilitando una futura migración progresiva a servicios si fuera necesario.
 
 ## 3. Mapeo de Dominio Target (`apps/`)
 
-Estructura propuesta (monolito modular):
+Estructura actual implementada (monolito modular):
 
 ```
 backend/
 ├── settings.py, urls.py            # Config raíz (sin mover)
 apps/
 ├── game/                            # Reglas del juego (Battle Engine)
-│   ├── models.py                    # Criatura, y futuros: Batalla, Tipo, Elemento
-│   ├── services.py                  # Battle Engine (lógica pura, dataclasses, DI)
+│   ├── models.py                    # Criatura (label histórico: criaturas)
 │   ├── views.py / serializers.py / urls.py / admin.py
-│   ├── management/commands/         # poblar_criaturas.py, simular_batallas.py
-│   └── migrations/                  # con manejo de app_label (ver Matriz)
-├── analytics/                       # Modelado dimensional (Star Schema)
-│   ├── marts/                       # dbt models (semillas SQL de métricas)
-│   ├── etl/                         # Jobs de ingesta a partir de game
-│   └── migrations/
+│   ├── management/commands/         # poblar_criaturas.py
+│   ├── migrations/                  # migraciones históricas preservadas
+│   └── tests/
 ├── ml/                              # Oráculo: ML/MLOps
-│   ├── services.py                  # get_oraculo_models(), predict (desde views)
-│   ├── registry/                    # Modelos versionados + metadata (artefactos)
-│   ├── management/commands/         # entrenar_oraculo.py
-│   ├── validation/                  # Evaluación sin data leakage (hold-out/temporal)
-│   └── migrations/
-└── ai/                              # Narrador LLM (MCP seguro)
-    ├── services.py                  # Narrativa con LLM
-    ├── mcp/                         # Servidores MCP seguros
-    └── migrations/
+│   ├── views.py / urls.py           # PrediccionCombateView, arena_view
+│   ├── ml_models/                   # modelo_combate.pkl, encoder_tipos.pkl
+│   ├── management/commands/         # entrenar_oraculo.py, simular_batallas.py
+│   └── tests/
+├── analytics/                       # Modelado dimensional (scaffolding)
+│   ├── management/commands/         # futuro ELT hacia BigQuery
+│   └── tests/
+└── ai/                              # Narrador LLM (scaffolding)
+    ├── services.py                  # futuro cliente OpenRouter/Gemini
+    └── tests/
 ```
+
+Notas de implementación:
+- `apps/game` conserva `label = 'criaturas'` y `apps/ml` conserva `label = 'oraculo'`.
+- `apps/ml/ml_models/` es la ubicación real de los artefactos; el `registry/` propuesto
+  queda como evolución futura.
+- `apps/analytics` y `apps/ai` están registradas en `INSTALLED_APPS`, pero todavía no
+  implementan lógica de negocio.
 
 ### Responsabilidades por dominio
 
@@ -133,31 +153,40 @@ Protocolo general por fase (aplicar en este orden estricto, de menor a mayor rie
 6. Solo entonces: siguiente fase
 ```
 
-### Fase 1 — `apps/game` (riesgo BAJO)
-- Mover `criaturas/*` → `apps/game/` (`models`, `views`, `serializers`, `urls`, `admin`, `management`, `tests`).
-- Actualizar `INSTALLED_APPS` (`criaturas` → `apps.game`) y `backend/urls.py` (`include('criaturas.urls')` → `include('apps.game.urls')`).
-- **Atención a migraciones:** ver Sección 5 (app_label / db_table) antes de `migrate`.
-- Verificación: `manage.py check`, `pytest` (suite actual de criaturas), prueba manual API `/api/criaturas/`.
+### Fase 1 — `apps/game` (COMPLETADA)
+- `criaturas/*` movido a `apps/game/` mediante `git mv`, incluyendo migraciones y tests.
+- `INSTALLED_APPS` actualizado a `apps.game`; `backend/urls.py` usa `include('apps.game.urls')`.
+- `GameConfig.label = 'criaturas'` conserva `app_label`, tabla `criaturas_criatura`,
+  `django_migrations`, `ContentType` y permisos existentes.
+- Verificación: `check` sin issues, `makemigrations --dry-run` → `No changes detected`,
+  `pytest` verde y smoke test de `/api/criaturas/`.
 
-### Fase 2 — `apps/ml` (riesgo MEDIO, depende de Fase 1)
-- Mover lógica ML de `oraculo/views.py` a `apps/ml/services.py`; mover `PrediccionCombateView` a `apps/ml/views.py`.
-- Mover `arena_view` (HTML) a `apps/game/views.py` (página del juego).
-- Mover `oraculo/ml_models/*.pkl` → `apps/ml/registry/` y **ajustar `get_oraculo_models()`** (la ruta de `settings.BASE_DIR` cambia).
-- Actualizar imports de `criaturas.models.Criatura` → `apps.game.models.Criatura`.
-- Verificación: `pytest` completo, predicción real en `/api/oraculo/predecir/`.
+### Fase 2 — `apps/ml` (COMPLETADA)
+- `oraculo/*` movido a `apps/ml/` mediante `git mv`, incluyendo tests y artefactos `.pkl`.
+- `MlConfig.label = 'oraculo'` mantiene compatibilidad con el historial previo.
+- Imports actualizados a `apps.ml.*`; la URL pública `/api/oraculo/` se mantiene intacta.
+- `get_oraculo_models()` y `entrenar_oraculo.py` resuelven `apps/ml/ml_models/` de forma
+  module-relative; el CSV de batallas permanece en `BASE_DIR`.
+- `arena_view` sigue en `apps/ml/views.py` por compatibilidad (deuda técnica: moverlo a `game`).
+- Verificación: `check`, `makemigrations --dry-run`, `pytest` y carga real de
+  `RandomForestClassifier` + `LabelEncoder` desde los artefactos.
 
-### Fase 3 — `apps/analytics` (riesgo MEDIO, lectura de `game`)
-- Crear dominio con jobs de ingesta y marts dbt sobre tablas de `game`.
-- Reubicar `simular_batallas` aquí SOLO si se decide que el dataset histórico es activo analítico (decisión pendiente, §2.1).
+### Fase 3 — `apps/analytics` (SCAFFOLDING ACTIVO)
+- Paquete creado y registrado en `INSTALLED_APPS` con `AnalyticsConfig` (`label = 'analytics'`).
+- Estructura lista: `management/commands/` para jobs ELT y `tests/`.
+- Pendiente: pipeline ELT hacia BigQuery, marts con dbt y decisión final sobre
+  `simular_batallas` (hoy en `apps/ml`).
 
-### Fase 4 — `apps/ai` (riesgo MEDIO-ALTO, futuro)
-- Crear dominio de narrador LLM; consumir `game` (criaturas) y `ml` (resultados).
-- Integración MCP segura (sin exponer credenciales).
+### Fase 4 — `apps/ai` (SCAFFOLDING ACTIVO)
+- Paquete creado y registrado en `INSTALLED_APPS` con `AiConfig` (`label = 'ai'`).
+- `services.py` documentado como punto de entrada para OpenRouter/Gemini y prompts.
+- Pendiente: cliente LLM, narración de combates e integración MCP segura.
 
 ### Criterios de salida por fase
-- `uv run pytest` 100% PASSED.
-- `manage.py check --deploy` sin errores nuevos.
+- `uv run pytest` 100% PASSED (estado actual: 10 passed, 0 warnings).
+- `manage.py check` y `makemigrations --dry-run` sin cambios inesperados.
 - Smoke test manual de los endpoints afectados.
+- `manage.py check --deploy` sin errores nuevos antes del merge a `main`.
 
 ---
 
@@ -170,10 +199,10 @@ Protocolo general por fase (aplicar en este orden estricto, de menor a mayor rie
 | **`INSTALLED_APPS` mal actualizado** | ALTO | Dejar el nombre viejo (`criaturas`) provoca `AppRegistryNotReady` o modelos cargados dos veces (App label conflict). | Actualizar la lista completa en un solo commit por fase; verificar con `manage.py check` y `makemigrations --check --dry-run`. |
 | **Rutas de importación rotas** | ALTO | Imports tipo `from criaturas.models import Criatura` repartidos por `oraculo/`, `backend/urls.py` y tests. | `rg -l "criaturas\.\|oraculo\."` global después de cada fase; actualizar en el mismo commit; CI/pytest como red de seguridad. |
 | **Dependencias circulares** | MEDIO | `ml` importa `game`; si en el futuro `game` importa `ml` (p. ej. narrativa en batalla) se crea ciclo. | Regla de arquitectura: `game` nunca importa `ml/ai`; si necesita predicción, se inyecta por servicio (DI), nunca por import directo. |
-| **Rutas físicas de recursos** | MEDIO | `get_oraculo_models()` y `poblar_criaturas.py` usan `settings.BASE_DIR`; al mover carpetas la ruta deja de existir. | Centralizar rutas en `settings.py` (constantes `ML_ARTIFACTS_DIR`, `SEED_IMAGES_DIR`) en vez de `os.path.join(BASE_DIR, ...)` hardcodeado en los comandos. |
+| **Rutas físicas de recursos** | MEDIO | Al mover apps, las rutas construidas con `settings.BASE_DIR` dejan de existir. | Implementado: artefactos ML resueltos como `Path(__file__).parent / 'ml_models'`; el CSV de batallas permanece en `BASE_DIR`. Una futura constante `ML_ARTIFACTS_DIR` en settings sigue recomendada. |
 | **Duplicación de modelos (double-registration)** | MEDIO | Si en una fase intermedia ambos módulos conviven, Django detecta dos `Criatura` (app labels distintos) → error al arrancar. | Mover siempre como transacción atómica (modelo + migración + INSTALLED_APPS juntos); nunca dejar el repo en estado intermedio. |
 | **Migraciones huérfanas** | MEDIO | Mover las migraciones físicamente antes de tiempo puede romper el grafo o confundir a Django con dos rutas. | **NO se mueven de carpeta física hasta que el resto del código esté migrado.** Orden exacto: (1) mover `models.py`/vistas a `apps/game/` con `label = 'criaturas'`; (2) actualizar `INSTALLED_APPS`/imports; (3) verificar con `manage.py check` y `pytest` que todo sigue funcionando con las migraciones aún en `criaturas/migrations/`; (4) solo entonces `git mv criaturas/migrations apps/game/migrations` conservando nombres y dependencias. |
-| **Datos de producción** | CRÍTICO | Migración mal hecha = pérdida de la tabla física en el VPS. | Como no se crea tabla ni migración nueva (solo se mueve el paquete conservando el label), el riesgo es bajo; aun así, respaldar (`pg_dump`) antes de `migrate` en producción y verificar que el plan no pide DDL sobre `criaturas_criatura`. |
+| **Datos de producción** | CRÍTICO | Migración mal hecha = pérdida de la tabla física en la VM de GCP. | Como no se crea tabla ni migración nueva (solo se mueve el paquete conservando el label), el riesgo es bajo; aun así, respaldar (`pg_dump`) antes de `migrate` en producción y verificar que el plan no pide DDL sobre `criaturas_criatura`. |
 
 ### Detalle: estrategia oficial para `app_label` (sin `db_table`, sin `SeparateDatabaseAndState`)
 
@@ -215,15 +244,25 @@ Protocolo general por fase (aplicar en este orden estricto, de menor a mayor rie
 - **D2:** `game` es el dominio raíz y no depende de `ml`/`ai` (regla anti-ciclos).
 - **D3:** El `app_label` histórico se hereda vía `label = 'criaturas'` en `apps/game/apps.py`;
   no se usa `db_table` ni `SeparateDatabaseAndState`. La tabla física no se toca.
-- **D4:** Las rutas físicas de artefactos (`.pkl`, seed) pasan a constantes en `settings.py`.
-- **D5:** El contenido del Paso 0 termina con este documento; el movimiento de código
-  requiere aprobación explícita para un siguiente Paso.
+- **D4:** Los artefactos ML se resuelven de forma module-relative (`apps/ml/ml_models`);
+  el CSV de batallas permanece en `BASE_DIR`. La centralización en constantes de
+  `settings.py` sigue como mejora futura.
+- **D5:** Fases 1 y 2 ejecutadas y validadas con `check`, `makemigrations --dry-run`
+  y `pytest` (10 passed, 0 warnings).
+- **D6:** `apps/analytics` y `apps/ai` se crean como scaffolding registrado, sin lógica
+  de negocio todavía, para completar la estructura del Monolito Modular antes del merge.
+- **D7:** `arena_view` permanece temporalmente en `apps/ml`; su traslado a `apps/game`
+  es deuda técnica documentada.
+- **D8:** `simular_batallas` permanece en `apps/ml` hasta que el pipeline ELT de
+  `apps/analytics` esté implementado.
 
 ---
 
-## 7. Siguientes Pasos Propuestos (fuera de alcance de este documento)
+## 7. Siguientes Pasos Propuestos
 
-1. Aprobar el blueprint (Luis + CTO + Codex).
-2. Ejecutar **Fase 1** (`apps/game`) con `git mv` y verificación completa.
-3. Resolver la decisión abierta de `simular_batallas` (game vs analytics).
-4. Diseñar `apps/ml` services layer (extraer lógica de `PrediccionCombateView`).
+1. Implementar el pipeline ELT de `apps/analytics` hacia BigQuery y los marts con dbt.
+2. Definir si `simular_batallas` se mueve a `analytics` o permanece en `ml`.
+3. Extraer la lógica de `PrediccionCombateView` a `apps/ml/services.py`.
+4. Trasladar `arena_view` a `apps/game/views.py`.
+5. Implementar el narrador LLM y la integración MCP segura en `apps/ai`.
+6. Ejecutar `check --deploy`, smoke tests y merge de `v2-architecture` a `main`.

@@ -1,6 +1,7 @@
 import pandas as pd
 import joblib  # Para guardar el cerebro (modelo) en un archivo
 import os
+from pathlib import Path
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from sklearn.model_selection import train_test_split
@@ -14,7 +15,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Rutas de archivos
         ruta_csv = os.path.join(settings.BASE_DIR, 'dataset_batallas.csv')
-        ruta_modelos = os.path.join(settings.BASE_DIR, 'oraculo', 'ml_models')
+        ruta_modelos = Path(__file__).resolve().parents[2] / 'ml_models'
         
         # Crear carpeta si no existe
         os.makedirs(ruta_modelos, exist_ok=True)
@@ -76,4 +77,4 @@ class Command(BaseCommand):
         # Guardamos el encoder (.pkl) para poder traducir los tipos cuando usemos la API
         joblib.dump(le, os.path.join(ruta_modelos, 'encoder_tipos.pkl'))
 
-        self.stdout.write(self.style.NOTICE('Archivos .pkl guardados en oraculo/ml_models/'))
+        self.stdout.write(self.style.NOTICE('Archivos .pkl guardados en apps/ml/ml_models/'))

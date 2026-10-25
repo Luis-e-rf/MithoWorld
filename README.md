@@ -10,7 +10,7 @@
 Plataforma Full Stack orientada a Ingeniería de Datos y Machine Learning. El sistema implementa un motor de combate RPG por turnos y un oráculo predictivo basado en Machine Learning, desplegado en infraestructura Cloud desacoplada y protegido perimetralmente con arquitectura Zero Trust.
 
 🔗 **Demo en Producción:** [https://mithoworld.yurack.com](https://mithoworld.yurack.com)  
-📄 **Blueprint de Arquitectura Modular:** Consulta [`ARCHITECTURE_MIGRATION.md`](ARCHITECTURE_MIGRATION.md) para el plan de migración por dominios (`apps/game`, `apps/ml`, `apps/analytics`, `apps/ai`).
+📄 **Blueprint de Arquitectura Modular:** Consulta [`ARCHITECTURE_MIGRATION.md`](ARCHITECTURE_MIGRATION.md). Fases 1 (`apps/game`) y 2 (`apps/ml`) completadas e integradas; `apps/analytics` y `apps/ai` ya cuentan con scaffolding activo.
 
 ---
 
