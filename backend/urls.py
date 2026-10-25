@@ -2,11 +2,8 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.static import serve
-from django.views.generic import RedirectView
 
-# IMPORTACIONES NUEVAS NECESARIAS
 from django.conf import settings
-from django.conf.urls.static import static
 from criaturas.views import home, detalle_criatura
 from oraculo.views import arena_view
 
@@ -24,16 +21,14 @@ urlpatterns = [
     path('api/oraculo/', include('oraculo.urls')),
 ]
 
-# BLOQUE DE MEDIA FILES (Fuerza bruta para producción)
+# Servicio de archivos multimedia (/media/) en TODOS los entornos.
+# WhiteNoise solo gestiona /static/; las imágenes de MEDIA_ROOT (volumen
+# persistente en producción) se sirven vía django.views.static.serve para
+# que estén disponibles incluso con DEBUG=False.
 urlpatterns += [
-    re_path(r'^media/(?P<path>.*)$', serve, {
-        'document_root': settings.MEDIA_ROOT,
-    }),
+    re_path(
+        r'^media/(?P<path>.*)$',
+        serve,
+        {'document_root': settings.MEDIA_ROOT},
+    ),
 ]
-
-# LÓGICA MÁGICA:
-# Si estamos en modo Debug (Desarrollo), le decimos a Django:
-# "Oye, si alguien pide una URL que empiece por MEDIA_URL (/media/),
-# búscalo en la carpeta física MEDIA_ROOT y entrégaselo".
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
