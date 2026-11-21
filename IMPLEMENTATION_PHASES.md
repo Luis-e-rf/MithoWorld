@@ -165,3 +165,42 @@ Con `DEBUG=False`, dos procesos independientes ejercitaron el throttle sobre
 la caché de archivos. El primero consumió la cuota de prueba y el segundo
 denegó otra solicitud del mismo visitante. `manage.py check` pasó y
 `makemigrations --check --dry-run` confirmó que el esquema está al día.
+
+## Fase 4 — Explicabilidad y telemetría de la Arena (2026-11-21)
+
+**Alcance y contratos.** Un POST exitoso a `/api/oraculo/predecir/` guarda
+un `CombatLog` antes de devolver HTTP 200. El objeto `resultado` conserva
+sus cuatro claves. `metricas.latencia_ms` contiene el mismo número que el
+historial. El servicio usa un único intervalo de `time.perf_counter()` desde
+la preparación del vector hasta la salida de `predict_proba()`, incluyendo
+`predict()`. La lectura de criaturas, la carga de artefactos, el cálculo del
+desglose, la escritura y la serialización ocurren fuera del intervalo.
+
+El POST normaliza ambos IDs y rechaza luchadores repetidos con HTTP 400 antes
+de cargar el modelo. Los errores 400, 404, 429 y 503 dejan intacto el historial.
+Un fallo de base de datos al insertar devuelve 503.
+
+El GET público `/api/oraculo/combates/` devuelve `{"combates": []}` para un
+historial vacío. Cada fila contiene `id`, `creado_en` en ISO 8601 UTC,
+`luchador_1`, `luchador_2`, `ganador_predicho`, `probabilidad` en escala 0–1 y
+`metricas` con `diferencial`, `ventaja_elemental` y `latencia_ms`. Cada
+referencia se representa mediante `id` y nombre actual, o como `null` completo
+tras el borrado. Las métricas proceden del registro. Una sola consulta con
+`select_related` recupera hasta diez filas por fecha descendente y desempata por
+ID descendente.
+
+**Arena.** Las barras comparan ataque, defensa y velocidad con una escala común
+para ambos luchadores en cada fila. La Arena preselecciona dos criaturas si
+están disponibles y espera a que el visitante ejecute la predicción. El panel
+muestra ganador, confianza, latencia, diferenciales y multiplicadores según las
+reglas. La tabla carga al abrir la página y tras cada POST exitoso. Un fallo
+del refresco conserva el resultado y las filas anteriores. «Reintentar
+historial» repite únicamente el GET. JavaScript inserta texto dinámico con
+`textContent` y presenta el plazo de `Retry-After` cuando el POST devuelve 429.
+
+**Criterios de salida y resultados.**
+
+- `uv run python manage.py check` pasó. `uv run python manage.py makemigrations --check --dry-run` confirmó la correspondencia del esquema.
+- `uv run pytest` pasó **34/34** con PostgreSQL. Una prueba con reloj controlado verifica un solo intervalo, las dos llamadas de inferencia y el mismo valor en el POST y en la fila persistida. La prueba de throttling de fase 3 cuenta tres éxitos y verifica el recuento inmediatamente después del 429.
+- El test del GET usa doce registros con fechas empatadas, verifica el límite y el orden, y exige exactamente **una consulta SQL** por petición, incluso al borrar al ganador y luego a ambos participantes.
+- Chromium ejercitó la Arena en escritorio (1280 px) y móvil (375 px) con los artefactos reales y dos criaturas en una base PostgreSQL desechable. Se comprobaron el historial vacío, el retrato ausente, las selecciones repetidas, la actualización tras un éxito y el reintento del GET. Se simularon un fallo de refresco y respuestas 429 con y sin `Retry-After`.

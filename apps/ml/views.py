@@ -3,12 +3,14 @@ import threading
 from pathlib import Path
 
 import joblib
+from django.db import DatabaseError
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.game.models import Criatura
+from apps.game.models import CombatLog, Criatura
+from apps.ml.serializers import CombateSerializer, LuchadoresSerializer
 from apps.ml.services import ProbabilidadNoFinita, predecir_combate
 from apps.ml.throttling import OraculoThrottle
 
@@ -74,11 +76,16 @@ class PrediccionCombateView(APIView):
     def post(self, request):
         # 1. Validar IDs ANTES de invocar get_oraculo_models(): un body
         # inválido devuelve 400 aunque los artefactos ML no estén disponibles.
-        id_1 = request.data.get('luchador_1_id')
-        id_2 = request.data.get('luchador_2_id')
-
-        if not id_1 or not id_2:
-            return Response({'error': 'Faltan IDs de luchadores'}, status=status.HTTP_400_BAD_REQUEST)
+        entrada = LuchadoresSerializer(data=request.data)
+        if not entrada.is_valid():
+            mensaje = 'Los IDs de los luchadores deben ser enteros positivos.'
+            if isinstance(request.data, dict) and not all(request.data.get(k) for k in entrada.fields):
+                mensaje = 'Faltan IDs de luchadores'
+            return Response({'error': mensaje}, status=status.HTTP_400_BAD_REQUEST)
+        id_1 = entrada.validated_data['luchador_1_id']
+        id_2 = entrada.validated_data['luchador_2_id']
+        if id_1 == id_2:
+            return Response({'error': 'Elige dos criaturas distintas.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 2. Asegurar disponibilidad del Oráculo (cache de una sola carga).
         modelo_combate, encoder_tipos = get_oraculo_models()
@@ -101,6 +108,19 @@ class PrediccionCombateView(APIView):
             return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         ganador = prediccion.ganador
         confianza = prediccion.probabilidad
+        metricas = {
+            'diferencial': prediccion.diferencial,
+            'ventaja_elemental': prediccion.ventaja_elemental,
+            'latencia_ms': prediccion.latencia_ms,
+        }
+        try:
+            CombatLog.objects.create(
+                luchador_1=c1, luchador_2=c2, ganador_predicho=ganador,
+                probabilidad=confianza, **metricas,
+            )
+        except DatabaseError:
+            logger.exception('No se pudo guardar la predicción en CombatLog.')
+            return Response({'detail': 'No se pudo guardar la predicción.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response({
             'resultado': {
                 'ganador_id': ganador.id,
@@ -108,8 +128,16 @@ class PrediccionCombateView(APIView):
                 'probabilidad': f"{confianza:.1%}",
                 'mensaje': f"El oráculo predice que {ganador.nombre} ganaría con un {confianza:.0%} de probabilidad.",
             },
-            'metricas': {
-                'diferencial': prediccion.diferencial,
-                'ventaja_elemental': prediccion.ventaja_elemental,
-            },
+            'metricas': metricas,
         })
+
+
+class HistorialCombatesView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        recientes = CombatLog.objects.select_related(
+            'luchador_1', 'luchador_2', 'ganador_predicho',
+        ).order_by('-creado_en', '-id')[:10]
+        return Response({'combates': CombateSerializer(recientes, many=True).data})

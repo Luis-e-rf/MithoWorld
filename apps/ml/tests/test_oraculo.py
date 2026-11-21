@@ -1,8 +1,11 @@
+from datetime import timedelta
 from unittest import mock
 
 import pytest
 from django.core.cache.backends.locmem import LocMemCache
+from django.db import OperationalError
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 
 import apps.ml.views as views
@@ -112,6 +115,7 @@ def test_oraculo_responde_503_cuando_modelo_ausente(client, criaturas_en_bd, mon
             content_type="application/json",
         )
         assert respuesta.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert not CombatLog.objects.exists()
 
         # El primer joblib.load falla; el 2º artefacto ni se intenta.
         assert mock_load.call_count == 1
@@ -135,6 +139,7 @@ def test_oraculo_body_invalido_devuelve_400_sin_modelos(client, criaturas_en_bd)
         )
 
     assert respuesta.status_code == status.HTTP_400_BAD_REQUEST
+    assert not CombatLog.objects.exists()
     mock_get.assert_not_called()
 
 
@@ -223,7 +228,9 @@ def test_throttling_del_oraculo_por_ip(client, criaturas_en_bd, monkeypatch):
     with mock.patch.object(views, 'get_oraculo_models', return_value=(modelo, _falso_encoder())):
         primera = predecir('192.0.2.1')
         assert primera.status_code == 200
-        assert primera.json()['metricas'] == {
+        metricas = primera.json()['metricas']
+        assert metricas.pop('latencia_ms') >= 0
+        assert metricas == {
             'diferencial': {'ataque': 20, 'defensa': -25, 'velocidad': 25},
             'ventaja_elemental': {'luchador_1': 1.0, 'luchador_2': 1.0},
         }
@@ -232,8 +239,9 @@ def test_throttling_del_oraculo_por_ip(client, criaturas_en_bd, monkeypatch):
         assert limitada.status_code == 429
         assert int(limitada['Retry-After']) > 0
         assert modelo.predict_proba.call_count == 2
+        assert CombatLog.objects.count() == 2
         assert predecir('192.0.2.2').status_code == 200
-    assert not CombatLog.objects.exists()
+    assert CombatLog.objects.count() == 3
 
 
 @pytest.mark.parametrize('confianza', [float('nan'), float('inf'), float('-inf')])
@@ -248,6 +256,7 @@ def test_oraculo_responde_503_con_probabilidad_no_finita(client, criaturas_en_bd
         )
 
     assert respuesta.status_code == 503
+    assert not CombatLog.objects.exists()
     assert respuesta.json() == {'detail': 'El modelo devolvió una probabilidad no finita.'}
 
 
@@ -264,3 +273,101 @@ def test_identidad_del_oraculo_tras_el_proxy(rf, origen, cabecera, identidad):
     headers = {'CF-Connecting-IP': cabecera} if cabecera is not None else {}
     peticion = rf.get('/', REMOTE_ADDR=origen, headers=headers)
     assert OraculoThrottle().get_ident(peticion) == identidad
+
+
+def test_post_mide_un_intervalo_y_guarda_el_resultado(client, criaturas_en_bd):
+    primero, segundo = criaturas_en_bd
+    modelo = _falso_modelo(prediccion=0, probabilidad=[0.824, 0.176], clases=[0, 1])
+    encoder = _falso_encoder()
+    llamadas = mock.Mock()
+    reloj = mock.Mock()
+    reloj.perf_counter.side_effect = [12.0, 12.125]
+    llamadas.attach_mock(reloj.perf_counter, 'reloj')
+    llamadas.attach_mock(encoder.transform, 'codificar')
+    llamadas.attach_mock(modelo.predict, 'clase')
+    llamadas.attach_mock(modelo.predict_proba, 'probabilidades')
+
+    with (
+        mock.patch.object(views, 'get_oraculo_models', return_value=(modelo, encoder)),
+        mock.patch('apps.ml.services.time', reloj),
+    ):
+        respuesta = client.post(
+            reverse('predecir_combate'), {'luchador_1_id': primero.pk, 'luchador_2_id': segundo.pk},
+            content_type='application/json',
+        )
+
+    assert respuesta.status_code == 200
+    assert [llamada[0] for llamada in llamadas.mock_calls] == [
+        'reloj', 'codificar', 'codificar', 'clase', 'probabilidades', 'reloj',
+    ]
+    combate = CombatLog.objects.get()
+    assert combate.latencia_ms == 125.0
+    assert respuesta.json()['metricas'] == {
+        'latencia_ms': combate.latencia_ms, 'ventaja_elemental': combate.ventaja_elemental,
+        'diferencial': combate.diferencial,
+    }
+    assert (combate.luchador_1_id, combate.luchador_2_id) == (primero.pk, segundo.pk)
+    assert combate.ganador_predicho_id == segundo.pk
+    assert combate.probabilidad == 0.824
+
+
+def test_errores_del_post_no_crean_historial(client, criaturas_en_bd):
+    primero, segundo = criaturas_en_bd
+    modelo = _falso_modelo(prediccion=1, probabilidad=[0.2, 0.8], clases=[0, 1])
+
+    def post(id_2):
+        return client.post(
+            reverse('predecir_combate'), {'luchador_1_id': primero.pk, 'luchador_2_id': id_2},
+            content_type='application/json',
+        )
+
+    with mock.patch.object(views, 'get_oraculo_models', return_value=(modelo, _falso_encoder())) as cargar:
+        assert post(str(primero.pk)).status_code == 400
+        cargar.assert_not_called()
+        assert post(segundo.pk + 1).status_code == 404
+        modelo.predict.assert_not_called()
+        with mock.patch.object(CombatLog.objects, 'create', side_effect=OperationalError):
+            assert post(segundo.pk).status_code == 503
+    assert not CombatLog.objects.exists()
+
+
+def test_historial_contrato_orden_limite_y_consultas(client, criaturas_en_bd, django_assert_num_queries):
+    url = reverse('historial_combates')
+    assert url == '/api/oraculo/combates/'
+    with django_assert_num_queries(1):
+        assert client.get(url).json() == {'combates': []}
+
+    primero, segundo = criaturas_en_bd
+    metricas = {
+        'latencia_ms': 4.728, 'diferencial': {'ataque': 20, 'defensa': -25, 'velocidad': 25},
+        'ventaja_elemental': {'luchador_1': 1.0, 'luchador_2': 1.0},
+    }
+    registros = CombatLog.objects.bulk_create([
+        CombatLog(luchador_1=primero, luchador_2=segundo, ganador_predicho=segundo,
+                  probabilidad=0.824, **metricas)
+        for _ in range(12)
+    ])
+    instante = timezone.now()
+    CombatLog.objects.update(creado_en=instante - timedelta(days=1))
+    CombatLog.objects.filter(pk=registros[0].pk).update(creado_en=instante)
+
+    def consultar():
+        with django_assert_num_queries(1):
+            respuesta = client.get(url)
+            assert respuesta.status_code == 200
+            return respuesta.json()['combates']
+
+    filas = consultar()
+    siguientes = sorted((r.pk for r in registros[1:]), reverse=True)[:9]
+    assert [fila['id'] for fila in filas] == [registros[0].pk, *siguientes]
+    referencia_2 = {'id': segundo.pk, 'nombre': segundo.nombre}
+    esperado = {
+        'id': registros[0].pk, 'creado_en': instante.isoformat().replace('+00:00', 'Z'),
+        'luchador_1': {'id': primero.pk, 'nombre': primero.nombre}, 'luchador_2': referencia_2,
+        'ganador_predicho': referencia_2, 'probabilidad': 0.824, 'metricas': metricas,
+    }
+    assert filas[0] == esperado
+    segundo.delete()
+    assert consultar()[0] == {**esperado, 'luchador_2': None, 'ganador_predicho': None}
+    primero.delete()
+    assert consultar()[0] == {**esperado, 'luchador_1': None, 'luchador_2': None, 'ganador_predicho': None}
