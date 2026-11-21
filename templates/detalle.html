@@ -26,9 +26,6 @@
 
         <!-- Barras de Estadísticas (Visualización simple con CSS) -->
         <div class="stats-container">
-            {% for stat, valor in stats.items %} <!-- Hack temporal, mejor hacerlo manual abajo -->
-            {% endfor %}
-            
             <div style="margin-bottom: 15px;">
                 <div style="display:flex; justify-content:space-between;"><strong>Ataque</strong> <span>{{ criatura.ataque }}</span></div>
                 <div style="background:#eee; height:10px; border-radius:5px; margin-top:5px; overflow:hidden;">

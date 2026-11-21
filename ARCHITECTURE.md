@@ -20,6 +20,12 @@ La app legacy `criaturas` conserva el `app_label` histórico `criaturas` mediant
 El detalle de fases, riesgos y decisiones está en
 [`ARCHITECTURE_MIGRATION.md`](./ARCHITECTURE_MIGRATION.md).
 
+La vista HTML `arena_view` reside ahora en `apps/game/views.py`; `apps/ml`
+conserva la API de predicción. Las fases 0 y 1 del plan incremental de portafolio
+(configuración por entorno y limpieza) están documentadas en
+[`IMPLEMENTATION_PHASES.md`](./IMPLEMENTATION_PHASES.md), con numeración
+independiente de la migración histórica.
+
 ## Tech Stack
 - **Backend:** Python 3.12, Django 5.2, Django REST Framework.
 - **Environment:** `uv` (Gestor de dependencias). Ejecutar comandos siempre con `uv run`.

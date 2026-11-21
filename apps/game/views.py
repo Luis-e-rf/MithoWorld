@@ -30,6 +30,11 @@ class CriaturaViewSet(viewsets.ReadOnlyModelViewSet):
 def home(request):
     return render(request, 'index.html')
 
+
+def arena_view(request):
+    return render(request, 'arena.html')
+
+
 def detalle_criatura(request, id):
     # Busca la criatura o lanza error 404 si no existe
     criatura = get_object_or_404(Criatura, id=id)

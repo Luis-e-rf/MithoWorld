@@ -2,7 +2,7 @@
 ![Estado](https://img.shields.io/badge/Estado-En_Producción_(GCP)-success)
 ![Cloud](https://img.shields.io/badge/Cloud-Google_Cloud_Platform-blue)
 ![Docker](https://img.shields.io/badge/Docker-Hardened_Containers-2496ED)
-![Tests](https://img.shields.io/badge/Tests-10%2F10_Passed-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-18%2F18_Passed-brightgreen)
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![Django](https://img.shields.io/badge/Backend-Django_5.2_%7C_DRF-092E20)
 ![Package Manager](https://img.shields.io/badge/Package_Manager-uv-DE5FE9)
@@ -11,6 +11,9 @@ Plataforma Full Stack orientada a Ingeniería de Datos y Machine Learning. El si
 
 🔗 **Demo en Producción:** [https://mithoworld.yurack.com](https://mithoworld.yurack.com)  
 📄 **Blueprint de Arquitectura Modular:** Consulta [`ARCHITECTURE_MIGRATION.md`](ARCHITECTURE_MIGRATION.md). Fases 1 (`apps/game`) y 2 (`apps/ml`) completadas e integradas; `apps/analytics` y `apps/ai` ya cuentan con scaffolding activo.
+
+📝 **Plan incremental de portafolio:** Fases 0 y 1 implementadas y verificadas;
+especificación, decisiones y resultados en [`IMPLEMENTATION_PHASES.md`](IMPLEMENTATION_PHASES.md).
 
 ---
 
@@ -70,10 +73,12 @@ graph TD
 - **Calibración de Probabilidades:** Salidas de `predict_proba` normalizadas y restringidas defensivamente en el intervalo cerrado $[0.0, 1.0]$.
 
 ### 3. Suite de Pruebas Automatizadas
-- **10/10 Tests Unitarios y de Integración (`pytest-django`):**
+- **18/18 Tests Unitarios y de Integración (`pytest-django`):**
   - Validación de idempotencia estricta en base de datos y sistema de archivos (`tmp_path`).
   - Pruebas de tolerancia a fallos del Oráculo ante ausencia de artefactos ML (`503`).
   - Validación de consistencia probabilística y límites de respuesta.
+  - Contrato de encabezados CSV, BOM, columnas reordenadas e imagen opcional.
+  - Smoke test de `/arena/` como vista HTML del dominio `game`.
 
 ---
 
@@ -101,27 +106,36 @@ cd MithoWorld
 uv sync
 ```
 
-### 2. Levantar la base de datos local
+### 2. Variables de entorno (.env)
+Copia la plantilla si aún no tienes un `.env` y completa sus valores:
 ```bash
-docker compose up -d
+cp -n .env.example .env
+uv run python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ```
 
-### 3. Variables de entorno (.env)
-Configura tu archivo `.env` en la raíz del proyecto:
+Guarda la clave generada en `SECRET_KEY` y elige un `DB_PASSWORD` antes de
+inicializar PostgreSQL. `SECRET_KEY` es obligatoria, no tiene un default y no debe
+quedar vacía. `.env` está excluido de Git; `.env.example` no contiene secretos.
+
+`ALLOWED_HOSTS` y `CSRF_TRUSTED_ORIGINS` se leen con `Csv()` de python-decouple:
+admiten listas separadas por comas y eliminan los espacios alrededor de cada valor.
+Los hosts no llevan esquema ni puerto; los orígenes sí incluyen el esquema
+(y el puerto si no es el estándar). Los defaults son `localhost,127.0.0.1` y una
+lista vacía de orígenes, respectivamente. Para producción configura `DEBUG=False`,
+`ALLOWED_HOSTS=mithoworld.yurack.com` y
+`CSRF_TRUSTED_ORIGINS=https://mithoworld.yurack.com` en el entorno del despliegue.
+Docker Compose de producción transmite ambas listas al contenedor web.
+
+### 3. Levantar la base de datos local
 ```bash
-SECRET_KEY=clave_secreta_local
-DEBUG=True
-DB_NAME=mithoworld_db
-DB_USER=mitho_user
-DB_PASSWORD=mitho_password
-DB_HOST=localhost
-DB_PORT=5432
+docker compose up -d
 ```
 
 ### 4. Inicializar datos y ejecutar pruebas
 ```bash
 uv run python manage.py migrate
 uv run python manage.py poblar_criaturas
+uv run python manage.py check
 uv run pytest
 uv run python manage.py runserver
 ```

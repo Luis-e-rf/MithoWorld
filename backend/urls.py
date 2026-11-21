@@ -4,8 +4,7 @@ from django.urls import path, include, re_path
 from django.views.static import serve
 
 from django.conf import settings
-from apps.game.views import home, detalle_criatura
-from apps.ml.views import arena_view
+from apps.game.views import home, detalle_criatura, arena_view
 
 # Personalización del Admin
 admin.site.site_header = "Panel de Control MithoWorld"

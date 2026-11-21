@@ -7,7 +7,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from apps.game.models import Criatura
-from django.shortcuts import render
 # Importamos permisos de DRF
 from rest_framework.permissions import AllowAny
 
@@ -144,7 +143,3 @@ class PrediccionCombateView(APIView):
                 'mensaje': f"El oráculo predice que {ganador.nombre} ganaría con un {confianza:.0%} de probabilidad."
             }
         })
-
-
-def arena_view(request):
-    return render(request, 'arena.html')

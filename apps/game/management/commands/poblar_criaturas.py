@@ -1,12 +1,17 @@
 import csv
 import os
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from django.core.files import File  # [NUEVO] Importante: Wrapper para manejar archivos en Django
 from apps.game.models import Criatura
 
 class Command(BaseCommand):
     help = 'Lee criaturas.csv e importa datos + imágenes a la base de datos'
+
+    COLUMNAS_REQUERIDAS = {
+        'Nombre', 'Tipo Primario', 'Tipo Secundario', 'Salud',
+        'Ataque', 'Defensa', 'Velocidad', 'Descripcion',
+    }
 
     def handle(self, *args, **options):
         # Rutas a los recursos
@@ -18,25 +23,21 @@ class Command(BaseCommand):
         self.stdout.write(self.style.NOTICE(f'Buscando imágenes en: {carpeta_imagenes}'))
 
         try:
-            with open(archivo_csv, mode='r', encoding='utf-8') as file:
-                # Recuerda: Usamos delimiter=';' porque así está tu Excel
-                reader = csv.reader(file, delimiter=';')
-                next(reader, None)  # Saltar encabezado
+            with open(archivo_csv, mode='r', encoding='utf-8-sig', newline='') as file:
+                # utf-8-sig admite el BOM del CSV exportado desde Excel.
+                reader = csv.DictReader(file, delimiter=';')
+                self._validar_encabezado(reader)
 
                 for i, row in enumerate(reader, start=2):
                     try:
                         # 1. Extracción de Datos (Texto)
-                        nombre_raw = row[0].strip()
-                        tipo_primario_raw = row[1].strip().lower()
-                        tipo_sec_val = row[2].strip().lower()
+                        nombre_raw = row['Nombre'].strip()
+                        tipo_primario_raw = row['Tipo Primario'].strip().lower()
+                        tipo_sec_val = row['Tipo Secundario'].strip().lower()
                         tipo_secundario_clean = tipo_sec_val if tipo_sec_val else None
                         
-                        # [NUEVO] Leemos la última columna (Índice 8) que tiene el nombre del archivo
-                        # Usamos un try/except simple por si alguna fila del CSV no tiene esa columna aún
-                        try:
-                            nombre_archivo_imagen = row[8].strip()
-                        except IndexError:
-                            nombre_archivo_imagen = None
+                        # Las imágenes siguen siendo opcionales e independientes de los datos.
+                        nombre_archivo_imagen = (row.get('NombreArchivo') or '').strip()
 
                         # 2. Lógica de DATOS: sincronizar stats desde el CSV.
                         # update_or_create crea o actualiza las columnas de stats
@@ -49,11 +50,11 @@ class Command(BaseCommand):
                             defaults={
                                 'tipo_primario': tipo_primario_raw,
                                 'tipo_secundario': tipo_secundario_clean,
-                                'salud': int(row[3]),
-                                'ataque': int(row[4]),
-                                'defensa': int(row[5]),
-                                'velocidad': int(row[6]),
-                                'descripcion': row[7].strip()
+                                'salud': int(row['Salud']),
+                                'ataque': int(row['Ataque']),
+                                'defensa': int(row['Defensa']),
+                                'velocidad': int(row['Velocidad']),
+                                'descripcion': row['Descripcion'].strip()
                             }
                         )
 
@@ -70,12 +71,32 @@ class Command(BaseCommand):
                         self.stdout.write(self.style.SUCCESS(f'{accion}: {nombre_raw}'))
 
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f'❌ Error en línea {i} ({row[0] if row else "?"}): {str(e)}'))
+                        self.stdout.write(self.style.ERROR(f'❌ Error en línea {i} ({row.get("Nombre", "?")}): {str(e)}'))
 
             self.stdout.write(self.style.SUCCESS('\n¡Proceso finalizado con éxito!'))
 
         except FileNotFoundError:
             self.stdout.write(self.style.ERROR('❌ Error: No se encuentra criaturas.csv'))
+
+    def _validar_encabezado(self, reader):
+        """Valida el esquema antes de escribir datos o copiar imágenes."""
+        if not reader.fieldnames:
+            raise CommandError('El CSV no tiene encabezado.')
+
+        # Admitir el nombre del CSV real y el alias histórico usado en tests.
+        columnas = [
+            'Descripcion' if nombre.strip() == 'Descripción' else nombre.strip()
+            for nombre in reader.fieldnames
+        ]
+        if any(not nombre for nombre in columnas):
+            raise CommandError('El CSV contiene columnas sin nombre.')
+        if len(columnas) != len(set(columnas)):
+            raise CommandError('El CSV contiene columnas duplicadas.')
+
+        faltantes = self.COLUMNAS_REQUERIDAS - set(columnas)
+        if faltantes:
+            raise CommandError(f'Faltan columnas requeridas en el CSV: {", ".join(sorted(faltantes))}')
+        reader.fieldnames = columnas
 
     def _procesar_imagen(self, obj, nombre_archivo_imagen, carpeta_imagenes):
         """Asocia una imagen a la criatura SOLO si aún no tiene una.
