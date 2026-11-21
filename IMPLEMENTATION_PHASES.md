@@ -1,8 +1,8 @@
 # Bitácora de implementación incremental
 
-Fecha: 2026-11-13. Alcance de esta entrega: fases 0 y 1 del plan de portafolio.
 Esta numeración es independiente de las fases históricas de migración modular
-documentadas en `ARCHITECTURE_MIGRATION.md`. Cambios pendientes de revisión, sin commit.
+documentadas en `ARCHITECTURE_MIGRATION.md`. Las fases 0 y 1, registradas el
+13 de noviembre, corresponden a los commits `44afa9e` y `4a47ff5`.
 
 ## Fase 0 — Configuración por entorno
 
@@ -69,7 +69,7 @@ atómica.
   de `/arena/` (HTTP 200, plantilla correcta y resolución a la vista de `game`).
 - `git diff --check`: sin errores de whitespace.
 
-## Entorno de verificación y reproducción
+## Entorno de verificación de las fases 0 y 1
 
 La primera ejecución de `check` pasó, pero los 10 tests fallaron durante la
 preparación de BD: no había PostgreSQL escuchando en `localhost:5432`. Docker
@@ -91,5 +91,77 @@ uv run python manage.py check
 uv run pytest
 ```
 
-Las fases 2–8 quedan pendientes: esta entrega no incorpora modelos, migraciones,
-telemetría, throttling, analítica ni cambios de entrenamiento.
+## Fase 2 — Historial de predicciones (2026-11-21)
+
+**Alcance y contrato.** `CombatLog`, definido en `apps/game`, conserva el orden de los dos luchadores y
+el ganador predicho. Al borrar una criatura, cada referencia afectada pasa a
+`NULL` y el registro conserva sus métricas. La probabilidad es la confianza del
+ganador en escala 0–1. El diferencial por estadística y los multiplicadores por
+luchador se guardan en dos campos JSON. La latencia se expresa en milisegundos y
+`creado_en` lo asigna Django al insertar. La vista de lista del Admin muestra
+los participantes, el ganador, la probabilidad, la latencia y la fecha.
+
+**Criterio de salida y resultado.** La migración `criaturas.0003_combatlog`
+se aplicó en PostgreSQL local y en la base de pytest. El test de historial
+verifica las tres referencias, la conservación de las métricas y el registro
+en Admin. `uv run pytest` pasó **19/19**, `uv run python manage.py check` pasó
+y `uv run python manage.py makemigrations --check --dry-run` confirmó la
+correspondencia entre modelo y migración.
+
+## Fase 3 — Reglas compartidas, inferencia y throttling (2026-11-21)
+
+**Alcance y contrato.** La simulación y la inferencia importan la matriz
+`VENTAJAS` de `apps/game/rules.py`. Cada entrada indica el multiplicador del
+atacante contra el defensor y un cruce ausente vale 1.0. El modelo sigue
+aprendiendo un score sintético determinista al que el simulador aplica ruido
+uniforme de ±10 % para cada luchador.
+
+`apps/ml/services.py` prepara las ocho columnas en el orden de entrenamiento,
+ejecuta la predicción y obtiene la confianza de la clase predicha. La vista
+conserva la carga diferida de artefactos, los códigos HTTP y el formato de
+`resultado`. La respuesta añade una clave hermana, `metricas`, con dos objetos.
+
+- `diferencial` contiene ataque, defensa y velocidad, calculados como luchador 1
+  menos luchador 2, independientemente del ganador.
+- `ventaja_elemental` contiene los multiplicadores ofensivos `luchador_1` y
+  `luchador_2`, calculados a partir de sus tipos primarios.
+
+**Throttling.** El endpoint de predicción usa `OraculoThrottle`, derivado de
+`ScopedRateThrottle`, con el ámbito `oraculo` y 30 solicitudes por minuto por IP.
+Si `ipaddress` clasifica `REMOTE_ADDR` como privada, acepta una única dirección
+IPv4 o IPv6 de `CF-Connecting-IP` y la normaliza. Para conexiones públicas,
+orígenes inválidos o una cabecera ausente o inválida, delega en DRF. Con
+`NUM_PROXIES=0`, DRF usa la dirección de conexión. Esta decisión presupone
+que los pares internos con acceso al servicio web son de confianza.
+Cada test del Oráculo empieza con una caché de throttling de pruebas vacía. Solo
+el test del límite usa 2 solicitudes por minuto. Verifica dos predicciones, un
+HTTP 429 con `Retry-After` antes de una tercera inferencia y una petición
+aceptada desde otra IP.
+
+**Criterio de salida y resultado.** Se mantuvieron las pruebas anteriores y se
+añadieron dos casos para el desglose del servicio y el límite HTTP.
+`uv run python manage.py check` pasó,
+`uv run python manage.py makemigrations --check --dry-run` confirmó la correspondencia del esquema y `uv run pytest`
+pasó **21/21**. Una petición adicional con los dos `.pkl` reales y dos criaturas
+en una base de pruebas PostgreSQL devolvió HTTP 200, respetó el contrato JSON y
+dejó el historial vacío. Medir la latencia, escribir desde el POST y consultar
+el historial corresponden a la fase 4.
+
+**Caché entre workers.** Con `DEBUG=False`, Django usa `FileBasedCache` en
+`~/.cache/mithoworld/django`, dentro del directorio del usuario que ejecuta
+Gunicorn y fuera de las rutas de estáticos y medios. Los workers del mismo
+contenedor comparten ese directorio. El límite de DRF sigue siendo aproximado
+bajo concurrencia porque la lectura y la actualización son operaciones separadas.
+Con `DEBUG=True` se usa la caché en memoria de Django.
+
+**Confianza no finita.** El servicio comprueba la probabilidad de la clase
+predicha con `math.isfinite()` antes de acotarla a 0–1. Ante `NaN`, `inf` o
+`-inf`, la vista responde HTTP 503 con un campo `detail`.
+
+**Validación de los ajustes.** `uv run pytest` pasó **31/31** en PostgreSQL.
+Los diez casos añadidos cubren las tres probabilidades no finitas y siete
+combinaciones de origen y cabecera, incluida la normalización IPv6.
+Con `DEBUG=False`, dos procesos independientes ejercitaron el throttle sobre
+la caché de archivos. El primero consumió la cuota de prueba y el segundo
+denegó otra solicitud del mismo visitante. `manage.py check` pasó y
+`makemigrations --check --dry-run` confirmó que el esquema está al día.

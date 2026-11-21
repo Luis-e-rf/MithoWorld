@@ -4,6 +4,7 @@ import os
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from apps.game.models import Criatura
+from apps.game.rules import VENTAJAS
 
 class Command(BaseCommand):
     help = 'Simula miles de batallas para generar un Dataset de entrenamiento'
@@ -22,18 +23,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.NOTICE(f'Iniciando simulación de {NUM_BATALLAS} batallas...'))
 
         data_batallas = []
-
-        # 2. Definición de Reglas Elementales (Tabla de Tipos)
-        # 1.0 = Neutro, 1.5 = Ventaja (Eficaz), 0.5 = Desventaja (Poco eficaz)
-        VENTAJAS = {
-            'fuego': {'tierra': 1.5, 'plasma': 0.5, 'agua': 0.5},
-            'agua': {'fuego': 1.5, 'tierra': 1.5, 'aire': 0.5},
-            'tierra': {'plasma': 1.5, 'aire': 0.5, 'agua': 0.5},
-            'aire': {'tierra': 1.5, 'fuego': 0.5, 'oscuridad': 0.5},
-            'luz': {'oscuridad': 2.0, 'plasma': 0.5},
-            'oscuridad': {'luz': 0.5, 'aire': 1.5},
-            'plasma': {'agua': 1.5, 'luz': 1.5, 'tierra': 0.5}
-        }
 
         # 3. Bucle de Batallas
         for i in range(NUM_BATALLAS):

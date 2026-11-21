@@ -1,11 +1,21 @@
 from unittest import mock
 
 import pytest
+from django.core.cache.backends.locmem import LocMemCache
 from django.urls import reverse
 from rest_framework import status
 
 import apps.ml.views as views
-from apps.game.models import Criatura
+from apps.game.models import CombatLog, Criatura
+from apps.ml.services import predecir_combate
+from apps.ml.throttling import OraculoThrottle
+
+
+@pytest.fixture(autouse=True)
+def cache_de_throttling_aislada(monkeypatch):
+    cache = LocMemCache('pruebas-oraculo', {})
+    cache.clear()
+    monkeypatch.setattr(OraculoThrottle, 'cache', cache)
 
 
 @pytest.fixture
@@ -184,3 +194,73 @@ def test_prediccion_oraculo_estructura_valida(client, criaturas_en_bd):
     assert set(resultado.keys()) == {"ganador_id", "ganador_nombre", "probabilidad", "mensaje"}
     assert resultado["ganador_id"] == c2.id
     assert resultado["ganador_nombre"] == c2.nombre
+
+
+def test_servicio_desglosa_el_combate_en_orden_de_entrada():
+    primero = Criatura(tipo_primario='fuego', ataque=90, defensa=40, velocidad=95)
+    segundo = Criatura(tipo_primario='tierra', ataque=70, defensa=65, velocidad=70)
+    modelo = _falso_modelo(prediccion=0, probabilidad=[0.2, 0.8], clases=[1, 0])
+
+    prediccion = predecir_combate(primero, segundo, modelo, _falso_encoder())
+
+    assert prediccion.ganador is segundo
+    assert prediccion.probabilidad == 0.8
+    assert prediccion.diferencial == {'ataque': 20, 'defensa': -25, 'velocidad': 25}
+    assert prediccion.ventaja_elemental == {'luchador_1': 1.5, 'luchador_2': 1.0}
+
+
+def test_throttling_del_oraculo_por_ip(client, criaturas_en_bd, monkeypatch):
+    monkeypatch.setattr(OraculoThrottle, 'THROTTLE_RATES', {'oraculo': '2/min'})
+    primero, segundo = criaturas_en_bd
+    datos = {'luchador_1_id': primero.pk, 'luchador_2_id': segundo.pk}
+    modelo = _falso_modelo(prediccion=1, probabilidad=[0.2, 0.8], clases=[0, 1])
+
+    def predecir(ip):
+        return client.post(
+            reverse('predecir_combate'), data=datos, content_type='application/json', REMOTE_ADDR=ip,
+        )
+
+    with mock.patch.object(views, 'get_oraculo_models', return_value=(modelo, _falso_encoder())):
+        primera = predecir('192.0.2.1')
+        assert primera.status_code == 200
+        assert primera.json()['metricas'] == {
+            'diferencial': {'ataque': 20, 'defensa': -25, 'velocidad': 25},
+            'ventaja_elemental': {'luchador_1': 1.0, 'luchador_2': 1.0},
+        }
+        assert predecir('192.0.2.1').status_code == 200
+        limitada = predecir('192.0.2.1')
+        assert limitada.status_code == 429
+        assert int(limitada['Retry-After']) > 0
+        assert modelo.predict_proba.call_count == 2
+        assert predecir('192.0.2.2').status_code == 200
+    assert not CombatLog.objects.exists()
+
+
+@pytest.mark.parametrize('confianza', [float('nan'), float('inf'), float('-inf')])
+def test_oraculo_responde_503_con_probabilidad_no_finita(client, criaturas_en_bd, confianza):
+    primero, segundo = criaturas_en_bd
+    modelo = _falso_modelo(prediccion=1, probabilidad=[0.2, confianza], clases=[0, 1])
+    with mock.patch.object(views, 'get_oraculo_models', return_value=(modelo, _falso_encoder())):
+        respuesta = client.post(
+            reverse('predecir_combate'),
+            data={'luchador_1_id': primero.pk, 'luchador_2_id': segundo.pk},
+            content_type='application/json',
+        )
+
+    assert respuesta.status_code == 503
+    assert respuesta.json() == {'detail': 'El modelo devolvió una probabilidad no finita.'}
+
+
+@pytest.mark.parametrize(('origen', 'cabecera', 'identidad'), [
+    ('172.18.0.2', '203.0.113.7', '203.0.113.7'),
+    ('fd00::2', '2001:0db8::1', '2001:db8::1'),
+    ('172.18.0.2', None, '172.18.0.2'),
+    ('172.18.0.2', '203.0.113.7, 203.0.113.8', '172.18.0.2'),
+    ('172.18.0.2', 'fe80::1%eth0', '172.18.0.2'),
+    ('8.8.8.8', '203.0.113.7', '8.8.8.8'),
+    ('invalida', '203.0.113.7', 'invalida'),
+])
+def test_identidad_del_oraculo_tras_el_proxy(rf, origen, cabecera, identidad):
+    headers = {'CF-Connecting-IP': cabecera} if cabecera is not None else {}
+    peticion = rf.get('/', REMOTE_ADDR=origen, headers=headers)
+    assert OraculoThrottle().get_ident(peticion) == identidad

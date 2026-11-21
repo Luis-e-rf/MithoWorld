@@ -29,6 +29,19 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_RATES': {'oraculo': '30/min'},
+    'NUM_PROXIES': 0,  # El fallback de DRF identifica por REMOTE_ADDR.
+}
+
+if not DEBUG:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': Path.home() / '.cache' / 'mithoworld' / 'django',
+        },
+    }
+
 
 # Application definition
 

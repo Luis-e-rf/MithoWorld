@@ -1,14 +1,16 @@
 import logging
-from pathlib import Path
 import threading
+from pathlib import Path
+
 import joblib
-import pandas as pd
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
-from apps.game.models import Criatura
-# Importamos permisos de DRF
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.game.models import Criatura
+from apps.ml.services import ProbabilidadNoFinita, predecir_combate
+from apps.ml.throttling import OraculoThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +66,10 @@ class PrediccionCombateView(APIView):
     """
     Recibe los IDs de dos criaturas y predice el ganador usando ML.
     """
-    # === ESTAS DOS LÍNEAS SON LA SOLUCIÓN ===
-    # Le dicen a DRF: "No intentes autenticar usuario ni busques cookies aquí".
     authentication_classes = []
     permission_classes = [AllowAny]
-    # ========================================
+    throttle_classes = [OraculoThrottle]
+    throttle_scope = 'oraculo'
 
     def post(self, request):
         # 1. Validar IDs ANTES de invocar get_oraculo_models(): un body
@@ -80,9 +81,6 @@ class PrediccionCombateView(APIView):
             return Response({'error': 'Faltan IDs de luchadores'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 2. Asegurar disponibilidad del Oráculo (cache de una sola carga).
-        # Los hallazgos de NaN/vector vacío y la reubicación del clamp a una
-        # capa de servicio quedan registrados como deuda técnica para Fase 2
-        # (apps/ml/services.py); no se resuelven en esta fase.
         modelo_combate, encoder_tipos = get_oraculo_models()
         if modelo_combate is None or encoder_tipos is None:
             return Response(
@@ -97,49 +95,21 @@ class PrediccionCombateView(APIView):
         except Criatura.DoesNotExist:
             return Response({'error': 'Una de las criaturas no existe'}, status=status.HTTP_404_NOT_FOUND)
 
-        # 4. Preparar los datos para la IA (Ingeniería de Características)
-        # Traducimos el texto "Fuego" a número usando el encoder guardado
-        tipo_1_num = encoder_tipos.transform([c1.tipo_primario])[0]
-        tipo_2_num = encoder_tipos.transform([c2.tipo_primario])[0]
-
-        # Construimos el DataFrame de una sola fila para predecir
-        datos_combate = pd.DataFrame([{
-            'ataque_1': c1.ataque,
-            'defensa_1': c1.defensa,
-            'velocidad_1': c1.velocidad,
-            'tipo_1_encoded': tipo_1_num,
-            'ataque_2': c2.ataque,
-            'defensa_2': c2.defensa,
-            'velocidad_2': c2.velocidad,
-            'tipo_2_encoded': tipo_2_num
-        }])
-
-        # 5. Preguntar al Oráculo
-        # predict devuelve [1] (Gana el 1) o [0] (Gana el 2)
-        prediccion = modelo_combate.predict(datos_combate)[0]
-
-        # predict_proba devuelve algo como [0.2, 0.8] (20% gana el 2, 80% gana el 1).
-        # La confianza debe ser la probabilidad de la clase EFECTIVAMENTE predicha,
-        # no el máximo del vector: el índice de la clase viene de classes_.
-        probabilidades = modelo_combate.predict_proba(datos_combate)[0]
-        clases = getattr(modelo_combate, "classes_", None)
-        if clases is not None:
-            indice_clase = list(clases).index(prediccion)
-        else:
-            indice_clase = int(prediccion)
-        confianza = float(probabilidades[indice_clase])
-        # Hardening (defensa preventiva): acotar a [0,1] aunque sklearn ya
-        # devuelve probabilidades en ese rango. No es parche de un bug real.
-        confianza = max(0.0, min(1.0, confianza))
-
-        ganador = c1 if prediccion == 1 else c2
-
-        # 5. Responder
+        try:
+            prediccion = predecir_combate(c1, c2, modelo_combate, encoder_tipos)
+        except ProbabilidadNoFinita as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        ganador = prediccion.ganador
+        confianza = prediccion.probabilidad
         return Response({
             'resultado': {
                 'ganador_id': ganador.id,
                 'ganador_nombre': ganador.nombre,
-                'probabilidad': f"{confianza:.1%}",  # Formato porcentaje (ej: 80.5%)
-                'mensaje': f"El oráculo predice que {ganador.nombre} ganaría con un {confianza:.0%} de probabilidad."
-            }
+                'probabilidad': f"{confianza:.1%}",
+                'mensaje': f"El oráculo predice que {ganador.nombre} ganaría con un {confianza:.0%} de probabilidad.",
+            },
+            'metricas': {
+                'diferencial': prediccion.diferencial,
+                'ventaja_elemental': prediccion.ventaja_elemental,
+            },
         })
