@@ -309,3 +309,15 @@ h1 {
     .ficha-etiqueta { display: block; font-size: .78rem; color: #526276; margin-bottom: 4px; }
     .ficha-diferencia { grid-template-columns: 1fr; gap: 6px; }
 }
+
+.ficha-matchups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.ficha-matchups article { padding: 16px; border: 1px solid #d8e4ed; background: var(--glass-bg); border-radius: 12px; }
+.ficha-matchups h3 { margin: 0 0 8px; font-size: .9rem; color: #43576b; }
+.ficha-matchups strong { display: block; font-size: 1.45rem; margin: 6px 0; }
+.ficha-matchups a { color: #175c95; }
+.ficha-matchups article p { color: #526276; font-size: .85rem; }
+.ficha-matchups > p { grid-column: span 2; align-self: center; }
+@media (max-width: 640px) {
+    .ficha-matchups { grid-template-columns: 1fr; }
+    .ficha-matchups > p { grid-column: auto; }
+}

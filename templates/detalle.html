@@ -64,6 +64,35 @@
             </tbody>
         </table>
     </section>
+    {% with m=perfil.matchups %}
+    <section class="ficha-panel" aria-labelledby="matchups">
+        <h2 id="matchups">Historial de combates simulados{% if m.seed_simulacion != None %} <small>· Semilla {{ m.seed_simulacion }}</small>{% endif %}</h2>
+        {% if m.seed_simulacion == None %}
+            <p class="ficha-nota">Aún no se han cargado combates simulados.</p>
+        {% elif not m.n_combates %}
+            <p class="ficha-nota">Esta criatura no participó en este dataset. Tasa de victorias: —</p>
+        {% else %}
+            <p class="ficha-nota">Rivales con al menos {{ m.min_muestra }} enfrentamientos. La tasa global incluye todos los duelos.</p>
+            <div class="ficha-matchups">
+                <article>
+                    <h3>Victorias simuladas</h3>
+                    <strong>{{ m.porcentaje|floatformat:1 }} %</strong>
+                    <p>{{ m.victorias }} victorias de {{ m.n_combates }} combates</p>
+                </article>
+                {% for rival in m.rivales %}
+                <article>
+                    <h3>{{ rival.etiqueta }}</h3>
+                    <a href="{% url 'detalle' id=rival.id %}">{{ rival.nombre }}</a>
+                    <strong>{{ rival.porcentaje|floatformat:1 }} %</strong>
+                    <p>{{ rival.victorias }} victorias de {{ rival.enfrentamientos }} enfrentamientos</p>
+                </article>
+                {% empty %}
+                <p class="ficha-nota">{% if m.n_rivales_elegibles %}Misma tasa ({{ m.porcentaje_comun|floatformat:1 }} %) frente a los {{ m.n_rivales_elegibles }} rivales elegibles.{% else %}Ningún rival alcanza los {{ m.min_muestra }} enfrentamientos.{% endif %}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+    {% endwith %}
 </main>
 {% endlanguage %}
 {% endblock %}

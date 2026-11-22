@@ -295,3 +295,46 @@ mixto, confianza no finita, throttling y límites del cronómetro.
 comprobaron el POST con el pipeline real, las cuatro barras, «Salud -30» y
 los multiplicadores 0,78× y 1,44× para Vornskr y Kaelith, en escritorio
 (1280 px) y móvil (375 px).
+
+## Subfase 5B — Historial de combates simulados (2026-11-22)
+
+**Procedencia y carga.** El simulador y el cargador comparten la función
+`catalogo_sha256` de `apps/game/catalog.py`. Conserva el orden por PK y la
+serialización de la Fase 6. `cargar_combates_simulados` verifica ambas huellas,
+las versiones, la cabecera, el recuento, los atributos de los participantes y la
+concordancia del ganador con la etiqueta antes de escribir.
+
+**Publicación en PostgreSQL.** El SHA-256 del CSV identifica el lote y la
+posición de cada fila dentro de él identifica el combate. La transacción toma
+primero un bloqueo `SHARE ROW EXCLUSIVE` sobre los lotes para serializar las
+cargas y luego `SHARE` sobre el catálogo para mantener estable su huella.
+Inserta bloques de 1 000 hechos y verifica el total. Para publicar o reactivar un
+lote, desactiva primero el anterior. Un índice único parcial admite un solo lote
+activo. Repetir la carga comprueba los hechos existentes y conserva su fecha de
+carga. El admin permite consultar los lotes archivados y el activo en modo de
+solo lectura.
+
+**Lectura en la ficha.** `matchups_criatura.sql` reúne con `UNION ALL` los dos
+lados del duelo del lote activo. Cada lado tiene un índice compuesto por luchador
+y lote. La tasa global incluye todos los combates de la criatura. Para destacar
+un rival se exigen ocho enfrentamientos. A igual tasa prevalece el mayor volumen
+y luego el menor ID. Si se borra un rival, la FK pasa a `NULL`, los IDs de
+origen permanecen inmutables y los duelos siguen contando en la tasa global.
+La ficha distingue entre ausencia de lote, criatura sin duelos, muestra
+insuficiente, rival único y empate de tasas entre todos los rivales elegibles.
+El router inyecta el servicio compuesto en la vista de `game`. Una ficha
+existente cuesta tres consultas SQL y un 404 cuesta una. La petición lee los
+hechos de PostgreSQL.
+
+**Verificación local.** Se aplicó `analytics.0001_simulaciones` y se cargaron
+los 10 000 hechos de la semilla 42 con el manifiesto publicado en la Fase 6.
+Una segunda carga devolvió «Ya cargado». Vornskr obtuvo 235 victorias en 379
+combates (62,0 %). Entre sus 21 rivales elegibles, ganó 18 de 18 frente a Gorvax
+y 0 de 14 frente a Noktis. En Chromium se verificaron esas cifras y los enlaces
+a ambas fichas en escritorio (1280 px, tres tarjetas en fila) y móvil (375 px,
+tarjetas apiladas).
+
+La suite incluye cargas concurrentes, rollback tras la inserción de un bloque,
+reactivación, huellas inválidas, conservación de los IDs de origen y presupuesto
+de consultas con el CSV ausente. Pasaron las 57 pruebas, `manage.py check`,
+`makemigrations --check --dry-run` y `git diff --check`.

@@ -25,7 +25,7 @@ def test_detalle_analitico_sin_imagen_y_presupuesto_sql(db, client, django_asser
     Criatura.objects.create(nombre='Otro', **{**stats, 'ataque': 51, 'defensa': 49})
     url = reverse('detalle', kwargs={'id': objetivo.pk})
     assert url == f'/criatura/{objetivo.pk}/'
-    with django_assert_num_queries(2):
+    with django_assert_num_queries(3):
         respuesta = client.get(url)
     assert respuesta.status_code == 200
     assert 'detalle.html' in [t.name for t in respuesta.templates]

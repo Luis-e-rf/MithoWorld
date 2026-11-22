@@ -8,9 +8,10 @@ from tempfile import TemporaryDirectory
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from apps.game.catalog import COLUMNAS, catalogo_sha256
 from apps.game.models import Criatura
 from apps.game.rules import score_base
-from apps.ml.features import COLUMNAS, atributos, fila_combate
+from apps.ml.features import fila_combate
 
 N_COMBATES = 10_000
 
@@ -33,8 +34,7 @@ class Command(BaseCommand):
         criaturas = list(Criatura.objects.order_by('pk'))
         if len(criaturas) < 2:
             raise CommandError('Se necesitan al menos dos criaturas.')
-        catalogo = [{'id': c.pk, 'nombre': c.nombre, **atributos(c)} for c in criaturas]
-        huella = hashlib.sha256(json.dumps(catalogo, sort_keys=True).encode()).hexdigest()
+        huella = catalogo_sha256(criaturas)
         rng = random.Random(seed)
         destino = Path(settings.BASE_DIR)
         with TemporaryDirectory(dir=destino) as temporal:
