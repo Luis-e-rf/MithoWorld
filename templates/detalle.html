@@ -1,52 +1,69 @@
 {% extends 'base.html' %}
+{% load i18n %}
 
 {% block title %}{{ criatura.nombre }} - MithoWorld{% endblock %}
 
 {% block content %}
-<div style="margin-top: 40px;">
-    <a href="{% url 'home' %}" style="text-decoration: none; color: var(--accent-color);">← Volver a la galería</a>
-</div>
+{% language "es" %}
+<main class="ficha">
+    <a class="ficha-volver" href="{% url 'home' %}">← Volver a la galería</a>
 
-<div class="creature-card" style="display: flex; gap: 40px; margin-top: 20px; flex-wrap: wrap;">
-    <!-- COLUMNA IZQUIERDA: FOTO -->
-    <div style="flex: 1; min-width: 300px;">
-        <img src="{{ criatura.imagen.url }}" alt="{{ criatura.nombre }}" style="width: 100%; border-radius: 12px; box-shadow: var(--shadow);">
-    </div>
-
-    <!-- COLUMNA DERECHA: DATOS -->
-    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
-        <h1 style="font-size: 40px; margin-bottom: 5px;">{{ criatura.nombre }}</h1>
-        <p style="font-size: 18px; color: var(--text-secondary); text-transform: uppercase; font-weight: bold; margin-top: 0;">
-            {{ criatura.tipo_primario }} {% if criatura.tipo_secundario %}/ {{ criatura.tipo_secundario }}{% endif %}
-        </p>
-
-        <p style="font-size: 18px; line-height: 1.6; color: #444; margin-bottom: 30px;">
-            {{ criatura.descripcion }}
-        </p>
-
-        <!-- Barras de Estadísticas (Visualización simple con CSS) -->
-        <div class="stats-container">
-            <div style="margin-bottom: 15px;">
-                <div style="display:flex; justify-content:space-between;"><strong>Ataque</strong> <span>{{ criatura.ataque }}</span></div>
-                <div style="background:#eee; height:10px; border-radius:5px; margin-top:5px; overflow:hidden;">
-                    <div style="background:#ff3b30; width: {{ criatura.ataque }}%; height:100%;"></div>
-                </div>
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <div style="display:flex; justify-content:space-between;"><strong>Defensa</strong> <span>{{ criatura.defensa }}</span></div>
-                <div style="background:#eee; height:10px; border-radius:5px; margin-top:5px; overflow:hidden;">
-                    <div style="background:#34c759; width: {{ criatura.defensa }}%; height:100%;"></div>
-                </div>
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <div style="display:flex; justify-content:space-between;"><strong>Velocidad</strong> <span>{{ criatura.velocidad }}</span></div>
-                <div style="background:#eee; height:10px; border-radius:5px; margin-top:5px; overflow:hidden;">
-                    <div style="background:#0071e3; width: {{ criatura.velocidad }}%; height:100%;"></div>
-                </div>
-            </div>
+    <header class="ficha-panel ficha-identidad">
+        <div class="ficha-retrato">
+            {% if criatura.imagen %}
+                <img src="{{ criatura.imagen.url }}" alt="Retrato de {{ criatura.nombre }}">
+            {% else %}
+                <span aria-hidden="true">{{ criatura.nombre|first|upper }}</span>
+            {% endif %}
         </div>
-    </div>
-</div>
+        <div>
+            <p class="ficha-tipos">{{ criatura.get_tipo_primario_display }}{% if criatura.tipo_secundario %} / {{ criatura.get_tipo_secundario_display }}{% endif %}</p>
+            <h1>{{ criatura.nombre }}</h1>
+            <p class="ficha-descripcion">{{ criatura.descripcion }}</p>
+        </div>
+    </header>
+
+    <section class="ficha-panel" aria-labelledby="posicion">
+        <h2 id="posicion">Posición en el catálogo</h2>
+        <dl class="ficha-indicadores">
+            <div>
+                <dt>Puntuación total</dt>
+                <dd>{{ perfil.score_total }}</dd>
+                <dd class="ficha-formula">Ataque + defensa + velocidad + salud</dd>
+            </div>
+            <div><dt>Puesto global</dt><dd>{{ perfil.puesto_global }} <small>de {{ perfil.n_catalogo }}</small></dd></div>
+            <div>
+                <dt>Percentil de puntuación global</dt>
+                <dd>{% if perfil.n_catalogo == 1 %}<small>Sin comparación</small>{% else %}P{{ perfil.percentil_visible|floatformat:1 }}{% endif %}</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="ficha-panel" aria-labelledby="comparacion">
+        <h2 id="comparacion">Comparación con {{ criatura.get_tipo_primario_display }} <small>· {{ perfil.n_elemento }} criatura{{ perfil.n_elemento|pluralize:"s" }}</small></h2>
+        <p class="ficha-nota">La media incluye a esta criatura. Cada barra muestra la diferencia en puntos respecto a su elemento.</p>
+        <table class="ficha-stats" aria-labelledby="comparacion">
+            <thead>
+                <tr><th scope="col">Estadística</th><th scope="col">Valor propio</th><th scope="col">Media</th><th scope="col">Diferencia con la media</th></tr>
+            </thead>
+            <tbody>
+                {% for fila in perfil.filas %}
+                <tr>
+                    <th scope="row">{{ fila.nombre }}</th>
+                    <td><span class="ficha-etiqueta" aria-hidden="true">Valor propio</span>{{ fila.valor }}</td>
+                    <td><span class="ficha-etiqueta" aria-hidden="true">Media</span>{{ fila.media|floatformat:1 }}</td>
+                    <td>
+                        <span class="ficha-etiqueta" aria-hidden="true">Diferencia</span>
+                        <div class="ficha-diferencia">
+                            <span>{% if fila.delta > 0 %}+{% endif %}{{ fila.delta|floatformat:1 }}</span>
+                            <div class="ficha-eje" aria-hidden="true"><i class="{% if fila.delta < 0 %}negativo{% endif %}" style="width: {{ fila.ancho|floatformat:'3u' }}%"></i></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</main>
+{% endlanguage %}
 {% endblock %}

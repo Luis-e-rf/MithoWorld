@@ -204,3 +204,34 @@ historial» repite únicamente el GET. JavaScript inserta texto dinámico con
 - `uv run pytest` pasó **34/34** con PostgreSQL. Una prueba con reloj controlado verifica un solo intervalo, las dos llamadas de inferencia y el mismo valor en el POST y en la fila persistida. La prueba de throttling de fase 3 cuenta tres éxitos y verifica el recuento inmediatamente después del 429.
 - El test del GET usa doce registros con fechas empatadas, verifica el límite y el orden, y exige exactamente **una consulta SQL** por petición, incluso al borrar al ganador y luego a ambos participantes.
 - Chromium ejercitó la Arena en escritorio (1280 px) y móvil (375 px) con los artefactos reales y dos criaturas en una base PostgreSQL desechable. Se comprobaron el historial vacío, el retrato ausente, las selecciones repetidas, la actualización tras un éxito y el reintento del GET. Se simularon un fallo de refresco y respuestas 429 con y sin `Retry-After`.
+
+## Fase 5 — Perfil analítico de criatura (2026-11-21)
+
+**Alcance y contrato SQL.** La ficha `/criatura/<id>/` muestra cuatro estadísticas
+y su posición en el catálogo actual. `apps/analytics/services.py` carga
+`sql/perfil_criatura.sql` una vez por proceso y ejecuta la consulta parametrizada
+en cada visita. El filtro por ID se aplica después de las ventanas. La puntuación
+suma ataque, defensa, velocidad y salud. `RANK()` descendente asigna el puesto 1
+a la puntuación máxima y deja saltos tras los empates. `PERCENT_RANK()`
+ascendente devuelve una fracción entre 0 y 1. Las cuatro medias usan la partición
+completa de tipo primario e incluyen a la criatura consultada.
+
+**Integración.** El router inyecta el servicio de lectura de `analytics` en la
+vista de `game`. La ruta conserva el nombre `detalle`. La vista consulta primero
+la entidad y luego el perfil. Una ficha existente cuesta dos consultas y un ID
+ausente recibe HTTP 404 en una consulta. Los matchups históricos quedan para
+la subfase 5B.
+
+**Presentación.** La ficha muestra puesto, puntuación y percentil junto a una
+comparativa elemental con barras divergentes. Las medias y diferencias se
+presentan a una décima. La escala común usa el mayor valor absoluto de los
+cuatro deltas visibles. Si todos valen cero, las cuatro barras tienen ancho
+cero. Un delta redondeado a cero se muestra como `0,0` independientemente del
+signo original. Un catálogo unitario muestra «1 de 1» y «Sin comparación».
+La inicial sustituye al retrato cuando la criatura carece de imagen.
+
+**Validación y criterios de salida.**
+
+- `uv run pytest` pasó **38/38** en PostgreSQL. Las cuatro pruebas nuevas cubren ranking y percentil con empates, catálogo unitario, las cuatro medias y diferencias por elemento, e integración HTML con el presupuesto de consultas. El caso de integración incluye deltas de −1/21 y +1/21 y verifica el texto y el ancho de las barras.
+- `uv run python manage.py check` pasó y `uv run python manage.py makemigrations --check --dry-run` confirmó la correspondencia del esquema.
+- En Chromium se revisaron fichas con retrato y con inicial en escritorio (1280 px) y móvil (375 px), con 50 criaturas en PostgreSQL de prueba. Se verificaron los cuatro indicadores elementales, el sentido de las barras y el ajuste al ancho disponible. En móvil, cada estadística agrupa valor propio, media y diferencia.
