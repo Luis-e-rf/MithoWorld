@@ -235,3 +235,63 @@ La inicial sustituye al retrato cuando la criatura carece de imagen.
 - `uv run pytest` pasó **38/38** en PostgreSQL. Las cuatro pruebas nuevas cubren ranking y percentil con empates, catálogo unitario, las cuatro medias y diferencias por elemento, e integración HTML con el presupuesto de consultas. El caso de integración incluye deltas de −1/21 y +1/21 y verifica el texto y el ancho de las barras.
 - `uv run python manage.py check` pasó y `uv run python manage.py makemigrations --check --dry-run` confirmó la correspondencia del esquema.
 - En Chromium se revisaron fichas con retrato y con inicial en escritorio (1280 px) y móvil (375 px), con 50 criaturas en PostgreSQL de prueba. Se verificaron los cuatro indicadores elementales, el sentido de las barras y el ajuste al ancho disponible. En móvil, cada estadística agrupa valor propio, media y diferencia.
+
+## Fase 6 — Pipeline ML v2 y hechos de simulación para 5B (2026-11-21)
+
+**Alcance y contrato.** `game.rules` normaliza ambos tipos, combina los cruces
+dirigidos de la matriz y define el score base de A frente a B como
+`ataque_A × multiplicador(A,B) + 0,50 × velocidad_A + 0,25 × salud_A − 0,20 × defensa_B`.
+Una criatura monotipo asigna todo el peso al primario. Una de doble tipo asigna
+2/3 al primario y 1/3 al secundario, tanto al atacar como al defender. Vacío,
+nulo o duplicado del primario representa ausencia de secundario. Simulación y
+Arena llaman a la misma función de ventaja. El simulador aplica ruido uniforme
+independiente de ±10 % a cada score y sortea con la misma semilla los empates
+exactos.
+
+**Dataset.** Se contrastaron las 50 criaturas locales con el catálogo versionado
+por nombre, cuatro stats y dos tipos. `uv run python manage.py simular_batallas
+--seed 42` muestreó sobre las PK ordenadas y generó 10 000 filas. El CSV contiene
+los IDs de los dos luchadores y del ganador, las seis entradas crudas de cada
+lado y la etiqueta binaria `gano_primero`. El manifiesto
+`dataset_batallas.meta.json` registra versiones, semilla, número de filas y
+SHA-256 del CSV y del catálogo. Para 5B, los IDs corresponden a ese catálogo y
+la pareja (huella del CSV, posición de fila) identifica cada simulación. Se
+observaron 1 224 de las 1 225 parejas posibles.
+
+**Entrenamiento e inferencia.** `uv run python manage.py entrenar_oraculo --seed 42`
+valida la cabecera v2, el manifiesto y la coherencia de las filas antes de
+entrenar. La lectura usa `keep_default_na=False`. Una prueba compara el DataFrame
+que recibe el pipeline del servicio con la fila leída del CSV y comprueba la
+categoría vacía del encoder ajustado. El constructor de features se comparte con
+el simulador. El pipeline ajusta un ColumnTransformer con ocho enteros y cuatro
+categóricas one-hot y un Random Forest de 100 árboles. El worker carga un solo
+`modelo_combate.pkl`; el encoder v1 se retiró. El modelo se recarga y evalúa
+antes de publicar los artefactos. `modelo_metadata.json` vincula huellas,
+features, distribución de clases, partición, métricas, versión de sklearn y fecha UTC.
+
+| Partición por pareja sin orientación | Combates | Parejas | Ganó L1 | Ganó L2 |
+|---|---:|---:|---:|---:|
+| Entrenamiento | 8 017 | 979 | 4 038 | 3 979 |
+| Evaluación | 1 983 | 245 | 991 | 992 |
+
+La evaluación sobre parejas reservadas dio **accuracy 0,851740** y **ROC AUC
+0,934440** para la clase 1. Estas métricas miden la reproducción del simulador
+sintético. Una segunda ejecución independiente con la misma semilla reprodujo
+el CSV byte a byte, el split, las métricas y todas las probabilidades al evaluar
+las 10 000 filas con los pipelines recargados.
+
+**API y Arena.** El POST mantiene las cuatro claves de `resultado`. El
+diferencial v2 incluye salud y la ventaja usa los dos tipos. La latencia sigue
+cubriendo un intervalo desde la preparación del vector hasta completar las
+dos llamadas del pipeline. El GET conserva cada JSON histórico, incluidos los
+multiplicadores y los diferenciales de tres stats v1. La Arena muestra cuatro
+barras y distingue salud ausente («Sin dato») de salud con diferencial cero.
+
+**Criterios de salida.** `uv run pytest` aprobó 42/42 en PostgreSQL, incluyendo
+reproducibilidad, paridad monotipo, rechazo de CSV y bosque v1, historial
+mixto, confianza no finita, throttling y límites del cronómetro.
+`uv run python manage.py check` pasó y `uv run python manage.py makemigrations
+--check --dry-run` confirmó la correspondencia del esquema. En Chromium se
+comprobaron el POST con el pipeline real, las cuatro barras, «Salud -30» y
+los multiplicadores 0,78× y 1,44× para Vornskr y Kaelith, en escritorio
+(1280 px) y móvil (375 px).

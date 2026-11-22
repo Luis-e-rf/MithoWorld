@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "rules_version": 2,
+  "seed_simulacion": 42,
+  "n_combates": 10000,
+  "catalogo_sha256": "0c22d4f324efcd8907da92c9b824bff628e2988b160d042806b9f14fbc418e67",
+  "dataset_sha256": "4f4b3cb1691f41ff4805369fd8813f73105812a5b0682513662c366b7d66ce55"
+}

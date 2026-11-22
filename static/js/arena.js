@@ -8,7 +8,7 @@ const boton = document.querySelector('#predecir');
 const estado = document.querySelector('#estado-combate');
 const reintentar = document.querySelector('#reintentar');
 const catalogo = new Map();
-const stats = { ataque: 'Ataque', defensa: 'Defensa', velocidad: 'Velocidad' };
+const stats = { ataque: 'Ataque', defensa: 'Defensa', velocidad: 'Velocidad', salud: 'Salud' };
 const decimal = new Intl.NumberFormat('es', { maximumFractionDigits: 2 });
 const porcentaje = new Intl.NumberFormat('es', { style: 'percent', maximumFractionDigits: 1 });
 const hora = new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'medium' });
@@ -55,7 +55,7 @@ function actualizarSeleccion() {
         const criatura = pareja[i];
         const tarjeta = select.closest('.arena-criatura');
         tarjeta.classList.remove('es-ganador');
-        tarjeta.querySelector('.arena-tipo').textContent = criatura?.tipo_primario ?? '';
+        tarjeta.querySelector('.arena-tipo').textContent = [criatura?.tipo_primario, criatura?.tipo_secundario].filter(Boolean).join(' / ');
         const imagen = tarjeta.querySelector('img');
         const inicial = tarjeta.querySelector('.arena-retrato span');
         inicial.textContent = criatura?.nombre.charAt(0) || '—';
@@ -102,7 +102,8 @@ function mostrarPrediccion({ resultado, metricas }) {
     document.querySelector('#latencia').textContent = decimal.format(metricas.latencia_ms) + ' ms';
     const diferencias = Object.entries(stats).map(([stat, nombre]) => {
         const valor = metricas.diferencial[stat];
-        return elemento('span', nombre + ' ' + (valor > 0 ? '+' : '') + valor);
+        const texto = valor == null ? 'Sin dato' : (valor > 0 ? '+' : '') + valor;
+        return elemento('span', nombre + ' ' + texto);
     });
     document.querySelector('#diferencial').replaceChildren(...diferencias);
     const ventajas = selectores.map((select, i) => {

@@ -1,89 +1,58 @@
+import csv
+import hashlib
+import json
 import random
-import pandas as pd
-import os
-from django.core.management.base import BaseCommand
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
+
 from apps.game.models import Criatura
-from apps.game.rules import VENTAJAS
+from apps.game.rules import score_base
+from apps.ml.features import COLUMNAS, atributos, fila_combate
+
+N_COMBATES = 10_000
+
+
+def ganador_simulado(primero, segundo, rng):
+    a = score_base(primero, segundo) * rng.uniform(0.9, 1.1)
+    b = score_base(segundo, primero) * rng.uniform(0.9, 1.1)
+    if a == b:
+        return rng.choice((primero, segundo))
+    return primero if a > b else segundo
+
 
 class Command(BaseCommand):
-    help = 'Simula miles de batallas para generar un Dataset de entrenamiento'
+    help = 'Simula 10 000 combates y registra su procedencia.'
 
-    def handle(self, *args, **options):
-        # 1. Configuración de la Simulación
-        NUM_BATALLAS = 10000  # Generaremos 10,000 peleas
-        OUTPUT_FILE = os.path.join(settings.BASE_DIR, 'dataset_batallas.csv')
-        
-        criaturas = list(Criatura.objects.all())
-        
+    def add_arguments(self, parser):
+        parser.add_argument('--seed', type=int, default=42)
+
+    def handle(self, *args, seed, **options):
+        criaturas = list(Criatura.objects.order_by('pk'))
         if len(criaturas) < 2:
-            self.stdout.write(self.style.ERROR('Necesitas al menos 2 criaturas para pelear.'))
-            return
-
-        self.stdout.write(self.style.NOTICE(f'Iniciando simulación de {NUM_BATALLAS} batallas...'))
-
-        data_batallas = []
-
-        # 3. Bucle de Batallas
-        for i in range(NUM_BATALLAS):
-            # Escogemos 2 luchadores al azar
-            c1, c2 = random.sample(criaturas, 2)
-
-            # Calculamos el resultado
-            ganador = self.determinar_ganador(c1, c2, VENTAJAS)
-
-            # 4. Guardamos los datos "crudos" para la IA
-            # La IA no necesita nombres, necesita NÚMEROS (stats)
-            registro = {
-                # Datos Luchador 1
-                'ataque_1': c1.ataque,
-                'defensa_1': c1.defensa,
-                'velocidad_1': c1.velocidad,
-                'tipo_1': c1.tipo_primario, # La IA tendrá que aprender a leer texto luego
-                
-                # Datos Luchador 2
-                'ataque_2': c2.ataque,
-                'defensa_2': c2.defensa,
-                'velocidad_2': c2.velocidad,
-                'tipo_2': c2.tipo_primario,
-
-                # TARGET (Lo que queremos predecir)
-                # 1 si gana el Luchador 1, 0 si gana el Luchador 2
-                'gano_primero': 1 if ganador == c1 else 0
-            }
-            data_batallas.append(registro)
-            
-            # Barra de progreso simple
-            if i % 1000 == 0:
-                self.stdout.write(f'... {i} batallas simuladas')
-
-        # 5. Exportar a CSV usando Pandas
-        df = pd.DataFrame(data_batallas)
-        df.to_csv(OUTPUT_FILE, index=False)
-
-        self.stdout.write(self.style.SUCCESS(f'✅ Dataset generado: {OUTPUT_FILE}'))
-
-    def determinar_ganador(self, c1, c2, ventajas):
-        """
-        Calcula un 'Score' de combate para cada uno. El score más alto gana.
-        Fórmula: (Ataque * Multiplicador) + Velocidad - (Defensa Oponente * 0.5) + Aleatoriedad
-        """
-        # Calcular Multiplicadores de Tipo
-        # .get(clave, valor_por_defecto)
-        mult_1 = ventajas.get(c1.tipo_primario, {}).get(c2.tipo_primario, 1.0)
-        mult_2 = ventajas.get(c2.tipo_primario, {}).get(c1.tipo_primario, 1.0)
-
-        # Factor Aleatorio (La suerte del combate +/- 10%)
-        # Esto es vital para que la IA no aprenda una fórmula matemática perfecta,
-        # sino que aprenda tendencias y probabilidades.
-        suerte_1 = random.uniform(0.9, 1.1)
-        suerte_2 = random.uniform(0.9, 1.1)
-
-        # Cálculo de Puntuación de Batalla
-        score_1 = (c1.ataque * mult_1) + (c1.velocidad * 0.5) - (c2.defensa * 0.2)
-        score_1 *= suerte_1
-
-        score_2 = (c2.ataque * mult_2) + (c2.velocidad * 0.5) - (c1.defensa * 0.2)
-        score_2 *= suerte_2
-
-        return c1 if score_1 > score_2 else c2
+            raise CommandError('Se necesitan al menos dos criaturas.')
+        catalogo = [{'id': c.pk, 'nombre': c.nombre, **atributos(c)} for c in criaturas]
+        huella = hashlib.sha256(json.dumps(catalogo, sort_keys=True).encode()).hexdigest()
+        rng = random.Random(seed)
+        destino = Path(settings.BASE_DIR)
+        with TemporaryDirectory(dir=destino) as temporal:
+            csv_path = Path(temporal) / 'dataset_batallas.csv'
+            with csv_path.open('w', encoding='utf-8', newline='') as archivo:
+                writer = csv.DictWriter(archivo, fieldnames=COLUMNAS, lineterminator='\n')
+                writer.writeheader()
+                for _ in range(N_COMBATES):
+                    a, b = rng.sample(criaturas, 2)
+                    ganador = ganador_simulado(a, b, rng)
+                    writer.writerow({'luchador_1_id': a.pk, 'luchador_2_id': b.pk,
+                                     'ganador_id': ganador.pk, **fila_combate(a, b),
+                                     'gano_primero': int(ganador == a)})
+            meta = {'schema_version': 2, 'rules_version': 2, 'seed_simulacion': seed,
+                    'n_combates': N_COMBATES, 'catalogo_sha256': huella,
+                    'dataset_sha256': hashlib.sha256(csv_path.read_bytes()).hexdigest()}
+            manifest = Path(temporal) / 'dataset_batallas.meta.json'
+            manifest.write_text(json.dumps(meta, indent=2) + '\n', encoding='utf-8')
+            csv_path.replace(destino / csv_path.name)
+            manifest.replace(destino / manifest.name)
+        self.stdout.write(f'{N_COMBATES} combates generados con semilla {seed}.')

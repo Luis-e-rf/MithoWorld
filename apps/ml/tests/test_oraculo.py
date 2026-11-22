@@ -10,6 +10,8 @@ from rest_framework import status
 
 import apps.ml.views as views
 from apps.game.models import CombatLog, Criatura
+from apps.ml.features import FEATURES, fila_combate
+from sklearn.pipeline import Pipeline
 from apps.ml.services import predecir_combate
 from apps.ml.throttling import OraculoThrottle
 
@@ -36,14 +38,9 @@ def criaturas_en_bd(db):
     return c1, c2
 
 
-def _falso_encoder():
-    encoder = mock.Mock()
-    encoder.transform.return_value = [0]
-    return encoder
-
-
 def _falso_modelo(prediccion, probabilidad, clases=None):
-    modelo = mock.Mock()
+    modelo = mock.Mock(spec=Pipeline)
+    modelo.feature_names_in_ = FEATURES
     modelo.predict.return_value = [prediccion]
     modelo.predict_proba.return_value = [probabilidad]
     if clases is not None:
@@ -59,8 +56,8 @@ def test_prediccion_oraculo_confianza_usa_clase_predicha(client, criaturas_en_bd
     modelo = _falso_modelo(prediccion=0, probabilidad=[0.6, 0.8], clases=[0, 1])
 
     with mock.patch.object(
-        views, "get_oraculo_models",
-        return_value=(modelo, _falso_encoder()),
+        views, "get_oraculo_model",
+        return_value=modelo,
     ):
         respuesta = client.post(
             reverse("predecir_combate"),
@@ -82,8 +79,8 @@ def test_prediccion_oraculo_clamp_porcentaje_fuera_de_rango(client, criaturas_en
     modelo = _falso_modelo(prediccion=1, probabilidad=[0.2, 1.4], clases=[0, 1])
 
     with mock.patch.object(
-        views, "get_oraculo_models",
-        return_value=(modelo, _falso_encoder()),
+        views, "get_oraculo_model",
+        return_value=modelo,
     ):
         respuesta = client.post(
             reverse("predecir_combate"),
@@ -105,7 +102,6 @@ def test_oraculo_responde_503_cuando_modelo_ausente(client, criaturas_en_bd, mon
 
     # Estado limpio del módulo, restaurado por monkeypatch al terminar.
     monkeypatch.setattr(views, "MODELO_COMBATE", None)
-    monkeypatch.setattr(views, "ENCODER_TIPOS", None)
     monkeypatch.setattr(views, "_ORACULO_CARGADO", False)
 
     with mock.patch.object(views.joblib, "load", side_effect=falta) as mock_load:
@@ -117,11 +113,11 @@ def test_oraculo_responde_503_cuando_modelo_ausente(client, criaturas_en_bd, mon
         assert respuesta.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert not CombatLog.objects.exists()
 
-        # El primer joblib.load falla; el 2º artefacto ni se intenta.
+        # La ausencia del único artefacto queda cacheada.
         assert mock_load.call_count == 1
 
         # Segunda llamada NO reintenta la carga (1 sola vez por proceso).
-        views.get_oraculo_models()
+        views.get_oraculo_model()
         assert mock_load.call_count == 1
 
 
@@ -130,8 +126,8 @@ def test_oraculo_body_invalido_devuelve_400_sin_modelos(client, criaturas_en_bd)
     c1, c2 = criaturas_en_bd
 
     # Sin mock de modelos: aunque los artefactos existan o falten, un body
-    # sin IDs debe devolver 400 ANTES de invocar get_oraculo_models().
-    with mock.patch.object(views, "get_oraculo_models") as mock_get:
+    # sin IDs debe devolver 400 ANTES de invocar get_oraculo_model().
+    with mock.patch.object(views, "get_oraculo_model") as mock_get:
         respuesta = client.post(
             reverse("predecir_combate"),
             data={},  # sin luchadores
@@ -147,27 +143,17 @@ def test_oraculo_body_invalido_devuelve_400_sin_modelos(client, criaturas_en_bd)
 def test_oraculo_carga_modelos_una_sola_vez(client, criaturas_en_bd, monkeypatch):
     c1, c2 = criaturas_en_bd
     monkeypatch.setattr(views, "MODELO_COMBATE", None)
-    monkeypatch.setattr(views, "ENCODER_TIPOS", None)
     monkeypatch.setattr(views, "_ORACULO_CARGADO", False)
 
     modelo = _falso_modelo(prediccion=0, probabilidad=[0.8, 0.2], clases=[0, 1])
-    encoder = _falso_encoder()
-
-    def _carga_falsa(ruta):
-        # 1ª llamada → modelo; 2ª llamada → encoder.
-        if "encoder" in str(ruta):
-            return encoder
-        return modelo
-
-    with mock.patch.object(views.joblib, "load", side_effect=_carga_falsa) as mock_load:
-        # Primer POST exitoso dispara 2 joblib.load (modelo + encoder).
+    with mock.patch.object(views.joblib, "load", return_value=modelo) as mock_load:
         respuesta = client.post(
             reverse("predecir_combate"),
             data={"luchador_1_id": c1.id, "luchador_2_id": c2.id},
             content_type="application/json",
         )
         assert respuesta.status_code == status.HTTP_200_OK
-        assert mock_load.call_count == 2
+        assert mock_load.call_count == 1
 
         # Segundo POST: ya cacheado, 0 llamadas adicionales.
         respuesta = client.post(
@@ -176,7 +162,7 @@ def test_oraculo_carga_modelos_una_sola_vez(client, criaturas_en_bd, monkeypatch
             content_type="application/json",
         )
         assert respuesta.status_code == status.HTTP_200_OK
-        assert mock_load.call_count == 2
+        assert mock_load.call_count == 1
 
 
 @pytest.mark.django_db
@@ -185,8 +171,8 @@ def test_prediccion_oraculo_estructura_valida(client, criaturas_en_bd):
     modelo = _falso_modelo(prediccion=0, probabilidad=[0.8, 0.2], clases=[0, 1])
 
     with mock.patch.object(
-        views, "get_oraculo_models",
-        return_value=(modelo, _falso_encoder()),
+        views, "get_oraculo_model",
+        return_value=modelo,
     ):
         respuesta = client.post(
             reverse("predecir_combate"),
@@ -202,15 +188,15 @@ def test_prediccion_oraculo_estructura_valida(client, criaturas_en_bd):
 
 
 def test_servicio_desglosa_el_combate_en_orden_de_entrada():
-    primero = Criatura(tipo_primario='fuego', ataque=90, defensa=40, velocidad=95)
-    segundo = Criatura(tipo_primario='tierra', ataque=70, defensa=65, velocidad=70)
+    primero = Criatura(tipo_primario='fuego', ataque=90, defensa=40, velocidad=95, salud=50)
+    segundo = Criatura(tipo_primario='tierra', ataque=70, defensa=65, velocidad=70, salud=80)
     modelo = _falso_modelo(prediccion=0, probabilidad=[0.2, 0.8], clases=[1, 0])
 
-    prediccion = predecir_combate(primero, segundo, modelo, _falso_encoder())
+    prediccion = predecir_combate(primero, segundo, modelo)
 
     assert prediccion.ganador is segundo
     assert prediccion.probabilidad == 0.8
-    assert prediccion.diferencial == {'ataque': 20, 'defensa': -25, 'velocidad': 25}
+    assert prediccion.diferencial == {'ataque': 20, 'defensa': -25, 'velocidad': 25, 'salud': -30}
     assert prediccion.ventaja_elemental == {'luchador_1': 1.5, 'luchador_2': 1.0}
 
 
@@ -225,13 +211,13 @@ def test_throttling_del_oraculo_por_ip(client, criaturas_en_bd, monkeypatch):
             reverse('predecir_combate'), data=datos, content_type='application/json', REMOTE_ADDR=ip,
         )
 
-    with mock.patch.object(views, 'get_oraculo_models', return_value=(modelo, _falso_encoder())):
+    with mock.patch.object(views, 'get_oraculo_model', return_value=modelo):
         primera = predecir('192.0.2.1')
         assert primera.status_code == 200
         metricas = primera.json()['metricas']
         assert metricas.pop('latencia_ms') >= 0
         assert metricas == {
-            'diferencial': {'ataque': 20, 'defensa': -25, 'velocidad': 25},
+            'diferencial': {'ataque': 20, 'defensa': -25, 'velocidad': 25, 'salud': -30},
             'ventaja_elemental': {'luchador_1': 1.0, 'luchador_2': 1.0},
         }
         assert predecir('192.0.2.1').status_code == 200
@@ -248,7 +234,7 @@ def test_throttling_del_oraculo_por_ip(client, criaturas_en_bd, monkeypatch):
 def test_oraculo_responde_503_con_probabilidad_no_finita(client, criaturas_en_bd, confianza):
     primero, segundo = criaturas_en_bd
     modelo = _falso_modelo(prediccion=1, probabilidad=[0.2, confianza], clases=[0, 1])
-    with mock.patch.object(views, 'get_oraculo_models', return_value=(modelo, _falso_encoder())):
+    with mock.patch.object(views, 'get_oraculo_model', return_value=modelo):
         respuesta = client.post(
             reverse('predecir_combate'),
             data={'luchador_1_id': primero.pk, 'luchador_2_id': segundo.pk},
@@ -278,18 +264,19 @@ def test_identidad_del_oraculo_tras_el_proxy(rf, origen, cabecera, identidad):
 def test_post_mide_un_intervalo_y_guarda_el_resultado(client, criaturas_en_bd):
     primero, segundo = criaturas_en_bd
     modelo = _falso_modelo(prediccion=0, probabilidad=[0.824, 0.176], clases=[0, 1])
-    encoder = _falso_encoder()
+    vector = mock.Mock(wraps=fila_combate)
     llamadas = mock.Mock()
     reloj = mock.Mock()
     reloj.perf_counter.side_effect = [12.0, 12.125]
     llamadas.attach_mock(reloj.perf_counter, 'reloj')
-    llamadas.attach_mock(encoder.transform, 'codificar')
+    llamadas.attach_mock(vector, 'vector')
     llamadas.attach_mock(modelo.predict, 'clase')
     llamadas.attach_mock(modelo.predict_proba, 'probabilidades')
 
     with (
-        mock.patch.object(views, 'get_oraculo_models', return_value=(modelo, encoder)),
+        mock.patch.object(views, 'get_oraculo_model', return_value=modelo),
         mock.patch('apps.ml.services.time', reloj),
+        mock.patch('apps.ml.services.fila_combate', vector),
     ):
         respuesta = client.post(
             reverse('predecir_combate'), {'luchador_1_id': primero.pk, 'luchador_2_id': segundo.pk},
@@ -298,7 +285,7 @@ def test_post_mide_un_intervalo_y_guarda_el_resultado(client, criaturas_en_bd):
 
     assert respuesta.status_code == 200
     assert [llamada[0] for llamada in llamadas.mock_calls] == [
-        'reloj', 'codificar', 'codificar', 'clase', 'probabilidades', 'reloj',
+        'reloj', 'vector', 'clase', 'probabilidades', 'reloj',
     ]
     combate = CombatLog.objects.get()
     assert combate.latencia_ms == 125.0
@@ -321,7 +308,7 @@ def test_errores_del_post_no_crean_historial(client, criaturas_en_bd):
             content_type='application/json',
         )
 
-    with mock.patch.object(views, 'get_oraculo_models', return_value=(modelo, _falso_encoder())) as cargar:
+    with mock.patch.object(views, 'get_oraculo_model', return_value=modelo) as cargar:
         assert post(str(primero.pk)).status_code == 400
         cargar.assert_not_called()
         assert post(segundo.pk + 1).status_code == 404
@@ -347,6 +334,9 @@ def test_historial_contrato_orden_limite_y_consultas(client, criaturas_en_bd, dj
                   probabilidad=0.824, **metricas)
         for _ in range(12)
     ])
+    registro_v2 = registros[-1]
+    registro_v2.diferencial = {**registro_v2.diferencial, 'salud': -30}
+    registro_v2.save(update_fields=['diferencial'])
     instante = timezone.now()
     CombatLog.objects.update(creado_en=instante - timedelta(days=1))
     CombatLog.objects.filter(pk=registros[0].pk).update(creado_en=instante)
@@ -358,6 +348,8 @@ def test_historial_contrato_orden_limite_y_consultas(client, criaturas_en_bd, dj
             return respuesta.json()['combates']
 
     filas = consultar()
+    assert 'salud' not in filas[0]['metricas']['diferencial']
+    assert filas[1]['metricas']['diferencial']['salud'] == -30
     siguientes = sorted((r.pk for r in registros[1:]), reverse=True)[:9]
     assert [fila['id'] for fila in filas] == [registros[0].pk, *siguientes]
     referencia_2 = {'id': segundo.pk, 'nombre': segundo.nombre}

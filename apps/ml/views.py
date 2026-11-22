@@ -3,6 +3,7 @@ import threading
 from pathlib import Path
 
 import joblib
+from sklearn.pipeline import Pipeline
 from django.db import DatabaseError
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -10,58 +11,36 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.game.models import CombatLog, Criatura
+from apps.ml.features import FEATURES
 from apps.ml.serializers import CombateSerializer, LuchadoresSerializer
 from apps.ml.services import ProbabilidadNoFinita, predecir_combate
 from apps.ml.throttling import OraculoThrottle
 
 logger = logging.getLogger(__name__)
 
-# Artefactos ML (Singleton). Se cargan una única vez por proceso via
-# get_oraculo_models(). MODELO_GANE / ENCODER_TIPOS siguen siendo globals
-# de módulo para poder ser mockeados directamente en los tests.
 _ruta_modelos = Path(__file__).resolve().parent / 'ml_models'
 MODELO_COMBATE = None
-ENCODER_TIPOS = None
 _ORACULO_CARGADO = False
-# Lock para evitar carga doble en requests concurrentes del mismo proceso.
 _carga_lock = threading.Lock()
 
 
-def get_oraculo_models():
-    """Carga (y cachea) los artefactos ML. Tolerante a falta de archivos.
-
-    Hardening (defensa preventiva), no corrección de un bug observado:
-    se ejecuta `joblib.load` UNA vez por proceso. Si el .pkl falta se
-    cachea el resultado "None" para no reintentar la carga en cada request
-    y evitar que la app crashee al import. El lock protege frente a la
-    carga doble en requests simultáneas (double-checked locking).
-    """
-    global MODELO_COMBATE, ENCODER_TIPOS, _ORACULO_CARGADO
-
-    if _ORACULO_CARGADO:
-        return MODELO_COMBATE, ENCODER_TIPOS
-
-    if MODELO_COMBATE is not None and ENCODER_TIPOS is not None:
-        # Pre-cargados (p. ej. mockeados en tests); no sobrescribir.
-        return MODELO_COMBATE, ENCODER_TIPOS
-
+def get_oraculo_model():
+    """Carga el pipeline v2 una vez por worker, incluso si falta el artefacto."""
+    global MODELO_COMBATE, _ORACULO_CARGADO
     with _carga_lock:
-        # Double-check dentro del lock: otro request pudo cargar entre ambos checks.
-        if _ORACULO_CARGADO:
-            return MODELO_COMBATE, ENCODER_TIPOS
-        if MODELO_COMBATE is not None and ENCODER_TIPOS is not None:
-            return MODELO_COMBATE, ENCODER_TIPOS
-
-        try:
-            MODELO_COMBATE = joblib.load(_ruta_modelos / 'modelo_combate.pkl')
-            ENCODER_TIPOS = joblib.load(_ruta_modelos / 'encoder_tipos.pkl')
-        except FileNotFoundError as exc:
-            logger.warning("Oráculo no disponible por falta de artefactos ML: %s", exc)
-            MODELO_COMBATE = None
-            ENCODER_TIPOS = None
-
-        _ORACULO_CARGADO = True
-        return MODELO_COMBATE, ENCODER_TIPOS
+        if not _ORACULO_CARGADO:
+            try:
+                modelo = joblib.load(_ruta_modelos / 'modelo_combate.pkl')
+                if (not isinstance(modelo, Pipeline)
+                        or list(getattr(modelo, 'feature_names_in_', ())) != FEATURES
+                        or set(getattr(modelo, 'classes_', ())) != {0, 1}):
+                    raise ValueError('El artefacto no cumple el contrato del pipeline v2.')
+                MODELO_COMBATE = modelo
+            except (OSError, ValueError, EOFError) as exc:
+                logger.warning('Oráculo no disponible: %s', exc)
+                MODELO_COMBATE = None
+            _ORACULO_CARGADO = True
+    return MODELO_COMBATE
 
 
 class PrediccionCombateView(APIView):
@@ -74,7 +53,7 @@ class PrediccionCombateView(APIView):
     throttle_scope = 'oraculo'
 
     def post(self, request):
-        # 1. Validar IDs ANTES de invocar get_oraculo_models(): un body
+        # 1. Validar IDs ANTES de invocar get_oraculo_model(): un body
         # inválido devuelve 400 aunque los artefactos ML no estén disponibles.
         entrada = LuchadoresSerializer(data=request.data)
         if not entrada.is_valid():
@@ -88,10 +67,10 @@ class PrediccionCombateView(APIView):
             return Response({'error': 'Elige dos criaturas distintas.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 2. Asegurar disponibilidad del Oráculo (cache de una sola carga).
-        modelo_combate, encoder_tipos = get_oraculo_models()
-        if modelo_combate is None or encoder_tipos is None:
+        modelo_combate = get_oraculo_model()
+        if modelo_combate is None:
             return Response(
-                {"detail": "Oráculo no disponible por falta de artefactos ML."},
+                {"detail": "Oráculo no disponible por falta de un pipeline v2 válido."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -103,7 +82,7 @@ class PrediccionCombateView(APIView):
             return Response({'error': 'Una de las criaturas no existe'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            prediccion = predecir_combate(c1, c2, modelo_combate, encoder_tipos)
+            prediccion = predecir_combate(c1, c2, modelo_combate)
         except ProbabilidadNoFinita as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         ganador = prediccion.ganador
