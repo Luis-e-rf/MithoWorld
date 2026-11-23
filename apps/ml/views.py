@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.game.models import CombatLog, Criatura
+from apps.game.combates import contexto_duelo, firmar_combate
 from apps.ml.features import FEATURES
 from apps.ml.serializers import CombateSerializer, LuchadoresSerializer
 from apps.ml.services import ProbabilidadNoFinita, predecir_combate
@@ -93,9 +94,9 @@ class PrediccionCombateView(APIView):
             'latencia_ms': prediccion.latencia_ms,
         }
         try:
-            CombatLog.objects.create(
+            combate = CombatLog.objects.create(
                 luchador_1=c1, luchador_2=c2, ganador_predicho=ganador,
-                probabilidad=confianza, **metricas,
+                contexto_duelo=contexto_duelo(c1, c2, ganador), probabilidad=confianza, **metricas,
             )
         except DatabaseError:
             logger.exception('No se pudo guardar la predicción en CombatLog.')
@@ -108,7 +109,8 @@ class PrediccionCombateView(APIView):
                 'mensaje': f"El oráculo predice que {ganador.nombre} ganaría con un {confianza:.0%} de probabilidad.",
             },
             'metricas': metricas,
-        })
+        }, headers={'X-Combat-Log-Id': str(combate.pk), 'X-Combate-Referencia': firmar_combate(combate.pk),
+                    'Cache-Control': 'private, no-store'})
 
 
 class HistorialCombatesView(APIView):

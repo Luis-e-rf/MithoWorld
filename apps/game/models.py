@@ -45,6 +45,7 @@ class CombatLog(models.Model):
     probabilidad = models.FloatField(help_text='Confianza en el ganador predicho, de 0 a 1.')
     ventaja_elemental = models.JSONField(help_text='Multiplicador ofensivo de cada luchador.')
     diferencial = models.JSONField(help_text='Diferencias por stat entre el primer luchador y el segundo.')
+    contexto_duelo = models.JSONField(null=True, editable=False)
     latencia_ms = models.FloatField()
     creado_en = models.DateTimeField(auto_now_add=True)
 

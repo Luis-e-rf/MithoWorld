@@ -55,6 +55,13 @@
         </section>
     </div>
 
+    <section class="arena-panel arena-cronica" aria-labelledby="titulo-cronica" data-url="{% url 'cronica_combate' 0 %}">
+        <h2 id="titulo-cronica">Crónica del Oráculo</h2>
+        <p role="status" id="estado-cronica">Predice un combate para solicitar su crónica.</p>
+        <div id="lineas-cronica"></div>
+        <button type="button" id="pedir-cronica" hidden>Generar crónica</button>
+    </section>
+
     <section class="arena-panel arena-historial" aria-labelledby="titulo-historial">
         <h2 id="titulo-historial">Últimas 10 predicciones</h2>
         <p role="status" id="estado-historial">Cargando historial…</p>

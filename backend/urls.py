@@ -22,6 +22,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apps.game.urls')),
     path('api/oraculo/', include('apps.ml.urls')),
+    path('api/ai/', include('apps.ai.urls')),
 ]
 
 # Servicio de archivos multimedia (/media/) en TODOS los entornos.

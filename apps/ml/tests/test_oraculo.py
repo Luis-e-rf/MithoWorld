@@ -10,6 +10,7 @@ from rest_framework import status
 
 import apps.ml.views as views
 from apps.game.models import CombatLog, Criatura
+from apps.game.combates import referencia_valida
 from apps.ml.features import FEATURES, fila_combate
 from sklearn.pipeline import Pipeline
 from apps.ml.services import predecir_combate
@@ -155,6 +156,7 @@ def test_oraculo_carga_modelos_una_sola_vez(client, criaturas_en_bd, monkeypatch
         assert respuesta.status_code == status.HTTP_200_OK
         assert mock_load.call_count == 1
 
+        primer_id = respuesta['X-Combat-Log-Id']
         # Segundo POST: ya cacheado, 0 llamadas adicionales.
         respuesta = client.post(
             reverse("predecir_combate"),
@@ -163,6 +165,8 @@ def test_oraculo_carga_modelos_una_sola_vez(client, criaturas_en_bd, monkeypatch
         )
         assert respuesta.status_code == status.HTTP_200_OK
         assert mock_load.call_count == 1
+        assert respuesta['X-Combat-Log-Id'] != primer_id
+        assert not referencia_valida(primer_id, respuesta['X-Combate-Referencia'])
 
 
 @pytest.mark.django_db
@@ -261,7 +265,7 @@ def test_identidad_del_oraculo_tras_el_proxy(rf, origen, cabecera, identidad):
     assert OraculoThrottle().get_ident(peticion) == identidad
 
 
-def test_post_mide_un_intervalo_y_guarda_el_resultado(client, criaturas_en_bd):
+def test_post_mide_un_intervalo_y_guarda_el_resultado(client, criaturas_en_bd, django_assert_num_queries):
     primero, segundo = criaturas_en_bd
     modelo = _falso_modelo(prediccion=0, probabilidad=[0.824, 0.176], clases=[0, 1])
     vector = mock.Mock(wraps=fila_combate)
@@ -277,6 +281,7 @@ def test_post_mide_un_intervalo_y_guarda_el_resultado(client, criaturas_en_bd):
         mock.patch.object(views, 'get_oraculo_model', return_value=modelo),
         mock.patch('apps.ml.services.time', reloj),
         mock.patch('apps.ml.services.fila_combate', vector),
+        django_assert_num_queries(3),  # Dos luchadores y un INSERT con la instantánea.
     ):
         respuesta = client.post(
             reverse('predecir_combate'), {'luchador_1_id': primero.pk, 'luchador_2_id': segundo.pk},
@@ -288,6 +293,11 @@ def test_post_mide_un_intervalo_y_guarda_el_resultado(client, criaturas_en_bd):
         'reloj', 'vector', 'clase', 'probabilidades', 'reloj',
     ]
     combate = CombatLog.objects.get()
+    assert set(respuesta.json()) == {'resultado', 'metricas'}
+    assert respuesta['X-Combat-Log-Id'] == str(combate.pk)
+    assert referencia_valida(combate.pk, respuesta['X-Combate-Referencia'])
+    assert combate.contexto_duelo['ganador'] == 'L2'
+    assert combate.contexto_duelo['luchadores'][1]['salud'] == segundo.salud
     assert combate.latencia_ms == 125.0
     assert respuesta.json()['metricas'] == {
         'latencia_ms': combate.latencia_ms, 'ventaja_elemental': combate.ventaja_elemental,
@@ -309,12 +319,14 @@ def test_errores_del_post_no_crean_historial(client, criaturas_en_bd):
         )
 
     with mock.patch.object(views, 'get_oraculo_model', return_value=modelo) as cargar:
-        assert post(str(primero.pk)).status_code == 400
+        invalida = post(str(primero.pk))
+        assert invalida.status_code == 400 and 'X-Combate-Referencia' not in invalida
         cargar.assert_not_called()
         assert post(segundo.pk + 1).status_code == 404
         modelo.predict.assert_not_called()
         with mock.patch.object(CombatLog.objects, 'create', side_effect=OperationalError):
-            assert post(segundo.pk).status_code == 503
+            fallida = post(segundo.pk)
+            assert fallida.status_code == 503 and 'X-Combat-Log-Id' not in fallida
     assert not CombatLog.objects.exists()
 
 

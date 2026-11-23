@@ -379,3 +379,66 @@ metadatos dañados. Las del proveedor comprueban la sustitución del binario con
 igual tamaño y fecha de modificación. `uv run python manage.py check`,
 `uv run python manage.py makemigrations --check --dry-run` y `git diff --check`
 pasaron.
+
+## Fase 8 — Crónica del Oráculo (2026-11-23)
+
+**Contrato de la Arena.** El POST de ML guarda la instantánea v1 de nombres,
+tipos, cuatro stats y lado ganador en `CombatLog.contexto_duelo`. Usa el mismo
+INSERT, después del intervalo de inferencia. Las migraciones aditivas conservan
+el historial previo con contexto nulo. En un éxito, las cabeceras
+`X-Combat-Log-Id` y `X-Combate-Referencia` vinculan la respuesta al combate.
+La firma de `game` caduca a los 15 minutos. El cuerpo JSON conserva su contrato.
+
+La Arena solicita `POST /api/ai/combates/<id>/cronica/` con la referencia firmada
+en una cabecera y cuerpo vacío. Un 202 indica que el GET sobre la misma ruta
+puede consultar el trabajo tras `Retry-After`. La respuesta incluye
+`combate_id`, `estado`, `lineas` y `reintentable`. Una crónica lista se sirve
+desde PostgreSQL, incluso con el proveedor deshabilitado. La interfaz distingue
+demo sin clave, límite local, fallo y referencia caducada. Un reintento actúa
+sobre la crónica del combate seleccionado. Las líneas se insertan con
+`textContent` y se descartan los resultados de selecciones anteriores.
+
+**Cola y cuota.** `CronicaCombate` tiene una relación uno a uno con el combate.
+Un bloqueo asesor transaccional de PostgreSQL serializa la admisión y la
+reserva de presupuesto por día UTC. Se admiten cuatro trabajos activos y una
+generación simultánea. El consumidor confirma el intento antes de la espera
+HTTP y condiciona la publicación al número de intento y a su vencimiento.
+Un timeout consume presupuesto. La recuperación de un trabajo interrumpido
+requiere una petición manual y se permiten dos llamadas como máximo por combate.
+El throttle por IP de los POST usa `3/min` por defecto y comparte con ML la
+resolución de la IP de Cloudflare. El sondeo tiene su propio ámbito de lectura.
+
+**Generación y operación.** El cliente HTTPX llama a OpenRouter con un límite
+total inicial de 15 s, conexión de 3 s y 256 tokens de salida (máximo 512).
+El modo inicial es `json_object` con `CRONICA_REQUIRE_PARAMETERS=False`.
+`json_schema` también está disponible. Ambos modos validan el mismo plan de
+2–4 líneas en Python. El proveedor recibe alias, categorías y cifras congeladas.
+Selecciona hechos, orden y variantes. El servidor incorpora nombres, valores,
+empates y cierre a favor del ganador predicho. El resultado permanece estable
+al cambiar nombres o borrar criaturas. El panel de linaje muestra este recorrido.
+
+Las variables opcionales están en `.env.example`. Con `CRONICA_API_KEY` y
+`CRONICA_MODELO` configurados, el comando de producción es
+`docker compose -f docker-compose.prod.yml --profile ai up -d --build`.
+El perfil añade el servicio `cronista` con la imagen web y un registro Django
+mínimo para `game` y `ai`. En desarrollo se ejecuta
+`uv run python manage.py procesar_cronicas`. El arranque local de `--once`
+en reposo registró 44,6 MiB de RSS máxima. Una prueba en un proceso nuevo audita
+la apertura de archivos y los módulos cargados para detectar lecturas de un
+.pkl o importaciones de ML, scikit-learn, NumPy, pandas y joblib.
+Una construcción local con BuildKit excluyó siete archivos señuelo de secretos
+y conservó `.env.example`.
+
+**Criterios de salida.** Las dos migraciones se aplicaron a PostgreSQL local.
+Pasaron 97 pruebas, `uv run python manage.py check`,
+`uv run python manage.py makemigrations --check --dry-run` y `git diff --check`.
+Las pruebas cubren firma y caducidad, el mismo INSERT y cronómetro de ML,
+los dos modos de respuesta, entradas inválidas, deduplicación, presupuesto
+concurrente, expiración y descarte de un resultado tardío tras un reintento.
+
+Chromium recorrió la Arena y el linaje de Analytics en 1280 y 375 px. Se usaron
+el pipeline publicado, PostgreSQL de prueba con las 50 criaturas y el lote
+de semilla 42, y un transporte OpenRouter simulado. Se verificaron el ganador,
+el sondeo, el 429, el estado de demo, el reintento sin repetir ML, el texto
+literal con marcas HTML y el cambio de combate durante una petición. Las
+comprobaciones de esta fase hicieron cero llamadas a OpenRouter.

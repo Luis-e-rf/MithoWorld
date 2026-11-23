@@ -14,6 +14,89 @@ const porcentaje = new Intl.NumberFormat('es', { style: 'percent', maximumFracti
 const hora = new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'medium' });
 let consultaHistorial;
 
+const tarjetaCronica = document.querySelector('.arena-cronica');
+const avisoCronica = document.querySelector('#estado-cronica');
+const lineasCronica = document.querySelector('#lineas-cronica');
+const pedirCronica = document.querySelector('#pedir-cronica');
+let dueloCronica;
+let temporizadorCronica;
+
+function cambiarCronica(respuesta) {
+    dueloCronica?.control.abort();
+    clearTimeout(temporizadorCronica);
+    const id = respuesta?.headers.get('X-Combat-Log-Id');
+    const referencia = respuesta?.headers.get('X-Combate-Referencia');
+    dueloCronica = id && referencia ? {
+        url: tarjetaCronica.dataset.url.replace('/0/', '/' + id + '/'),
+        referencia, control: new AbortController(), metodo: 'POST',
+    } : null;
+    lineasCronica.replaceChildren();
+    pedirCronica.hidden = !dueloCronica;
+    pedirCronica.disabled = false;
+    pedirCronica.textContent = 'Generar crónica';
+    avisoCronica.textContent = dueloCronica ? 'Puedes narrar esta predicción con IA.'
+        : 'Predice un combate para solicitar su crónica.';
+}
+
+function segundosEspera(valor) {
+    if (!valor) return 0;
+    const segundos = /^\d+$/.test(valor) ? Number(valor) : Math.ceil((Date.parse(valor) - Date.now()) / 1000);
+    return Number.isFinite(segundos) ? Math.max(1, segundos) : 0;
+}
+
+function permitirReintento(duelo, mensaje, espera) {
+    avisoCronica.textContent = mensaje + (espera ? ' Vuelve a intentarlo en ' + espera + ' s.' : '');
+    pedirCronica.textContent = duelo.metodo === 'GET' ? 'Consultar estado' : 'Reintentar crónica';
+    pedirCronica.hidden = false;
+    pedirCronica.disabled = Boolean(espera);
+    if (espera) temporizadorCronica = setTimeout(() => { pedirCronica.disabled = false; }, espera * 1000);
+}
+
+async function solicitarCronica(duelo) {
+    if (!duelo || duelo !== dueloCronica) return;
+    pedirCronica.disabled = true;
+    avisoCronica.textContent = 'Preparando la crónica…';
+    try {
+        const respuesta = await fetch(duelo.url, {
+            method: duelo.metodo, headers: { 'X-Combate-Referencia': duelo.referencia },
+            signal: duelo.control.signal, cache: 'no-store',
+        });
+        const datos = await respuesta.json();
+        if (duelo !== dueloCronica) return;
+        const espera = segundosEspera(respuesta.headers.get('Retry-After'));
+        if (respuesta.status === 202) {
+            duelo.metodo = 'GET';
+            temporizadorCronica = setTimeout(() => solicitarCronica(duelo), (espera || 2) * 1000);
+            return;
+        }
+        if (datos.estado === 'lista') {
+            lineasCronica.replaceChildren(...datos.lineas.map(texto => elemento('p', texto)));
+            avisoCronica.textContent = 'Crónica de la predicción';
+        } else if (datos.estado === 'no_configurada') {
+            avisoCronica.textContent = 'La narración con IA está desactivada en esta demo.';
+        } else if (respuesta.status === 429) {
+            if (datos.estado === 'cuota') duelo.metodo = 'POST';
+            permitirReintento(duelo, 'Se alcanzó el límite de crónicas.', espera);
+            return;
+        } else if (datos.reintentable) {
+            duelo.metodo = 'POST';
+            permitirReintento(duelo, 'El narrador no pudo completar esta crónica.', espera);
+            return;
+        } else {
+            avisoCronica.textContent = datos.estado === 'referencia_invalida' ? 'La referencia al combate ha caducado.'
+                : 'La crónica no está disponible para este combate.';
+        }
+        pedirCronica.hidden = true;
+    } catch {
+        if (duelo !== dueloCronica) return;
+        // El servidor pudo haber aceptado el POST. Consultar antes de repetirlo.
+        duelo.metodo = 'GET';
+        permitirReintento(duelo, 'No pudimos confirmar el estado de la crónica.', 0);
+    }
+}
+
+pedirCronica.addEventListener('click', () => solicitarCronica(dueloCronica));
+
 function elemento(tag, texto) {
     const nodo = document.createElement(tag);
     nodo.textContent = texto;
@@ -50,6 +133,7 @@ function dibujarComparativa(primero, segundo) {
 }
 
 function actualizarSeleccion() {
+    cambiarCronica();
     const pareja = selectores.map(select => catalogo.get(select.value));
     selectores.forEach((select, i) => {
         const criatura = pareja[i];
@@ -120,15 +204,15 @@ function mostrarPrediccion({ resultado, metricas }) {
 function mensajeLimite(reintento) {
     const base = 'Alcanzaste el límite de predicciones. ';
     if (!reintento) return base + 'Espera un momento y vuelve a intentarlo.';
-    const segundos = /^\d+$/.test(reintento) ? Number(reintento)
-        : Math.ceil((Date.parse(reintento) - Date.now()) / 1000);
-    if (!Number.isFinite(segundos)) return base + 'Espera un momento y vuelve a intentarlo.';
-    return base + 'Vuelve a intentarlo en ' + Math.max(1, segundos) + ' s.';
+    const segundos = segundosEspera(reintento);
+    if (!segundos) return base + 'Espera un momento y vuelve a intentarlo.';
+    return base + 'Vuelve a intentarlo en ' + segundos + ' s.';
 }
 
 async function predecir(evento) {
     evento.preventDefault();
     if (boton.disabled) return;
+    cambiarCronica();
     boton.disabled = true;
     for (const select of selectores) select.disabled = true;
     estado.textContent = 'Calculando predicción…';
@@ -148,6 +232,7 @@ async function predecir(evento) {
             return;
         }
         mostrarPrediccion(datos);
+        cambiarCronica(respuesta);
         cargarHistorial();
     } catch {
         estado.textContent = 'No pudimos confirmar la respuesta del Oráculo. Consulta el historial.';

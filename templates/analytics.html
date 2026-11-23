@@ -92,6 +92,7 @@
                     <li><strong>Entrenamiento</strong><p><code>entrenar_oraculo</code> valida el dataset y separa las parejas de entrenamiento y evaluación.</p></li>
                     <li><strong>Publicación</strong><p>El pipeline Random Forest se guarda en <code>modelo_combate.pkl</code>. <code>modelo_metadata.json</code> publica las métricas y la huella del modelo.</p></li>
                     <li><strong>Inferencia y telemetría</strong><p>La API lee los luchadores de <code>Criatura</code>, usa el pipeline, registra la predicción en <code>CombatLog</code> y devuelve el desglose a Arena XAI.</p></li>
+                    <li><strong>Crónica bajo demanda</strong><p>Desde la Arena, un trabajo en PostgreSQL usa la instantánea de <code>CombatLog</code>. El consumidor consulta OpenRouter, valida los hechos y guarda las líneas en <code>CronicaCombate</code>.</p></li>
                 </ol>
             </section>
             <section class="linaje-rama">

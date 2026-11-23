@@ -226,6 +226,10 @@ h1 {
 .arena-insignias { display: flex; flex-wrap: wrap; gap: 6px; }
 .arena-insignias span { border-radius: 7px; padding: 4px 8px; background: #e8eff6; color: #254561; font-size: .83rem; }
 .arena-historial { margin-top: 16px; }
+.arena-cronica { margin-top: 16px; border-left: 3px solid var(--l2); overflow-wrap: anywhere; }
+.arena-cronica h2 { margin-bottom: 6px; }
+.arena-cronica button { margin-top: 12px; }
+.arena #lineas-cronica p { color: #263c52; line-height: 1.65; margin-top: 6px; max-width: 78ch; }
 .arena-historial button { margin-top: 8px; }
 .arena-tabla { overflow-x: auto; margin-top: 12px; }
 .arena-tabla table { width: 100%; border-collapse: collapse; text-align: left; font-size: .88rem; }
