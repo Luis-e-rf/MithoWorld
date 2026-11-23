@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load i18n tz %}
+{% block title %}Analytics · MithoWorld{% endblock %}
+{% block content %}
+{% language "es" %}
+<main class="universo">
+    <header>
+        <h1>Analytics del universo</h1>
+        <p>Catálogo, balance elemental y evaluación del Oráculo.</p>
+    </header>
+
+    <section class="universo-kpis" aria-label="Indicadores del universo">
+        <article class="universo-panel">
+            <h2>Criaturas en catálogo</h2>
+            <strong class="kpi-valor">{{ universo.n_catalogo|floatformat:"0g" }}</strong>
+            <a href="{% url 'home' %}">Ver galería</a>
+        </article>
+        <article class="universo-panel">
+            <h2>Combates simulados</h2>
+            {% if universo.dataset_sha256 %}
+                <strong class="kpi-valor">{{ universo.n_simulados|floatformat:"0g" }}</strong>
+                <p>Semilla {{ universo.seed_simulacion }}<br>SHA <code>{{ universo.dataset_sha256|slice:":12" }}</code></p>
+            {% else %}<p>Sin lote activo</p>{% endif %}
+        </article>
+        <article class="universo-panel">
+            <h2>Predicciones registradas</h2>
+            <strong class="kpi-valor">{{ universo.n_predicciones|floatformat:"0g" }}</strong>
+            <a href="{% url 'arena' %}">Ver Arena IA</a>
+        </article>
+        <article class="universo-panel universo-modelo">
+            <h2>Evaluación del modelo publicado</h2>
+            {% if modelo %}
+                <dl>
+                    <div><dt>Accuracy</dt><dd>{{ modelo.accuracy_pct|floatformat:2 }} %</dd></div>
+                    <div><dt>ROC AUC</dt><dd>{{ modelo.roc_auc|floatformat:4 }}</dd></div>
+                </dl>
+                <p>Entrenado el <time datetime="{{ modelo.fecha|utc|date:'c' }}">{{ modelo.fecha|utc|date:"d/m/Y H:i" }} UTC</time> · Semilla {{ modelo.seed }}</p>
+                <p>Evaluado en parejas reservadas de la simulación.</p>
+                {% if otro_lote %}<p class="universo-aviso">Entrenado con otro lote · SHA <code>{{ modelo.dataset_sha256|slice:":12" }}</code></p>{% endif %}
+            {% else %}<p>Evaluación del modelo no disponible.</p>{% endif %}
+        </article>
+    </section>
+
+    <section class="universo-graficos" aria-label="Balance elemental">
+        <article class="universo-panel">
+            <h2>Distribución del catálogo</h2>
+            {% if universo.elementos %}
+                <ul class="universo-barras" aria-label="Criaturas y porcentaje del catálogo por tipo primario">
+                    {% for e in universo.elementos %}
+                    <li>
+                        <span>{{ e.nombre }}</span><span>{{ e.criaturas|floatformat:"0g" }} · <b>{{ e.porcentaje_catalogo|floatformat:1 }} %</b></span>
+                        <div class="universo-pista" aria-hidden="true"><i style="width: {{ e.porcentaje_catalogo|floatformat:'2u' }}%"></i></div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <p>Criaturas por tipo primario actual y proporción sobre el catálogo completo.</p>
+            {% else %}<p>Catálogo vacío.</p>{% endif %}
+        </article>
+        <article class="universo-panel universo-victorias">
+            <h2>Victorias frente a otros tipos primarios</h2>
+            {% if not universo.dataset_sha256 %}<p>Sin lote activo.</p>
+            {% elif not universo.n_cruces %}<p>Sin cruces entre tipos clasificables.</p>
+            {% else %}
+                <ul class="universo-barras" aria-label="Victorias, participaciones y tasa por tipo primario">
+                    {% for e in universo.elementos %}
+                    <li>
+                        <span>{{ e.nombre }}</span><span>{% if e.participaciones %}{{ e.victorias|floatformat:"0g" }} / {{ e.participaciones|floatformat:"0g" }} · <b>{{ e.porcentaje_victorias|floatformat:1 }} %</b>{% else %}Sin cruces{% endif %}</span>
+                        <div class="universo-pista" aria-hidden="true">{% if e.participaciones %}<i style="width: {{ e.porcentaje_victorias|floatformat:'2u' }}%"></i>{% endif %}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <p>Victorias / participaciones según el tipo primario actual de ambos luchadores. La marca indica el 50 %.</p>
+            {% endif %}
+            {% if universo.dataset_sha256 %}
+                <p class="universo-exclusiones">Cruces incluidos <b>{{ universo.n_cruces|floatformat:"0g" }}</b> · Espejos excluidos <b>{{ universo.n_espejos|floatformat:"0g" }}</b> · Sin clasificar <b>{{ universo.n_sin_clasificar|floatformat:"0g" }}</b></p>
+            {% endif %}
+        </article>
+    </section>
+
+    <section class="universo-panel linaje" aria-labelledby="linaje">
+        <h2 id="linaje">Linaje de datos</h2>
+        <ol class="linaje-tronco" aria-label="Origen común de la simulación">
+            <li><h3>Fuentes</h3><p><code>criaturas.csv</code> e imágenes de las criaturas.</p></li>
+            <li><h3>Ingesta idempotente</h3><p><code>poblar_criaturas</code> sincroniza el catálogo y copia las imágenes a media.</p></li>
+            <li><h3>Catálogo PostgreSQL</h3><p><code>Criatura</code> guarda tipos, estadísticas y la ruta de la imagen.</p></li>
+            <li><h3>Simulación reproducible</h3><p><code>simular_batallas</code> lee el catálogo y genera <code>dataset_batallas.csv</code> más un manifiesto con semilla y huellas SHA-256.</p></li>
+        </ol>
+        <div class="linaje-ramas">
+            <section class="linaje-rama">
+                <h3>ML · Oráculo</h3>
+                <ol>
+                    <li><strong>Entrenamiento</strong><p><code>entrenar_oraculo</code> valida el dataset y separa las parejas de entrenamiento y evaluación.</p></li>
+                    <li><strong>Publicación</strong><p>El pipeline Random Forest se guarda en <code>modelo_combate.pkl</code>. <code>modelo_metadata.json</code> publica las métricas y la huella del modelo.</p></li>
+                    <li><strong>Inferencia y telemetría</strong><p>La API lee los luchadores de <code>Criatura</code>, usa el pipeline, registra la predicción en <code>CombatLog</code> y devuelve el desglose a Arena XAI.</p></li>
+                </ol>
+            </section>
+            <section class="linaje-rama">
+                <h3>Analytics · PostgreSQL</h3>
+                <ol>
+                    <li><strong>Carga atómica</strong><p><code>cargar_<wbr>combates_<wbr>simulados</code> valida el SHA del CSV y contrasta la huella del catálogo con <code>Criatura</code>.</p></li>
+                    <li><strong>Hechos y matchups</strong><p><code>LoteSimulacion</code> identifica el lote activo. <code>CombateSimulado</code> aporta los duelos para las tasas por rival y por elemento.</p></li>
+                    <li><strong>Lecturas del catálogo</strong><p>La ficha calcula el ranking y las medias con ventanas SQL sobre <code>Criatura</code>. Este dashboard reúne catálogo, lote activo, <code>CombatLog</code> y metadatos del modelo.</p></li>
+                </ol>
+            </section>
+        </div>
+    </section>
+</main>
+{% endlanguage %}
+{% endblock %}

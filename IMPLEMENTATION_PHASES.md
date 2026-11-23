@@ -338,3 +338,44 @@ La suite incluye cargas concurrentes, rollback tras la inserción de un bloque,
 reactivación, huellas inválidas, conservación de los IDs de origen y presupuesto
 de consultas con el CSV ausente. Pasaron las 57 pruebas, `manage.py check`,
 `makemigrations --check --dry-run` y `git diff --check`.
+
+## Fase 7 — Dashboard público del universo (2026-11-22)
+
+**Alcance.** La pestaña Analytics abre `/analytics/`. La página muestra el
+catálogo, el lote activo con su semilla y prefijo de SHA-256, las predicciones
+registradas en `CombatLog` y las métricas de evaluación del modelo publicado.
+El linaje en HTML/CSS muestra el origen compartido y las ramas ML y Analytics.
+Identifica las lecturas directas de `Criatura` para las ventanas SQL y la
+inferencia, y la validación del catálogo que hace el cargador de hechos.
+
+**Contrato estadístico.** `apps/analytics/sql/dashboard_universo.sql` devuelve
+los indicadores y ambos gráficos en una sentencia PostgreSQL. Cuenta los hechos
+del lote activo y clasifica cada participante por su tipo primario actual. En
+un duelo entre tipos distintos cada lado aporta una participación y el ganador
+aporta una victoria. La página informa cuántos espejos y duelos inclasificables
+quedaron fuera de la tasa. Ambos grupos sí cuentan en el total simulado. Si se
+edita un tipo, sus duelos se reagrupan. Borrar un participante deja el duelo
+sin clasificar. Una tasa de cero requiere al menos una participación.
+
+**Procedencia del modelo.** El router inyecta en la vista de Analytics el
+proveedor de `apps/ml/metadata.py`. Este lee el JSON publicado, verifica tipos,
+rango de métricas, fecha y huellas, y calcula por bloques el SHA-256 del pipeline.
+El digest se reutiliza por worker según dispositivo, inodo, tamaño y marcas de
+tiempo del archivo. Una publicación inválida deja disponible el resto del panel.
+Al comparar el dataset de entrenamiento con el lote activo se usan las dos
+huellas completas. La evaluación corresponde a las parejas reservadas durante el
+entrenamiento.
+
+**Verificación local.** En la semilla 42 (`4f4b3cb1691f`) se observaron 50
+criaturas, 10 000 hechos, 8 677 cruces entre elementos, 1 323 espejos, 0 duelos
+sin clasificar y 0 predicciones registradas. El modelo del mismo lote mostró
+85,17 % de accuracy y 0,9344 de ROC AUC. Chromium verificó en 1280 y 375 px las
+etiquetas capitalizadas, las proporciones de las barras, el foco por teclado,
+las dos ramas del linaje y el ajuste al ancho disponible.
+
+Pasaron 74 pruebas en PostgreSQL. Las pruebas de integración exigen una
+consulta en cada visita, incluidos los estados vacíos, el cambio de lote y los
+metadatos dañados. Las del proveedor comprueban la sustitución del binario con
+igual tamaño y fecha de modificación. `uv run python manage.py check`,
+`uv run python manage.py makemigrations --check --dry-run` y `git diff --check`
+pasaron.

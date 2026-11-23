@@ -5,7 +5,9 @@ from django.views.static import serve
 
 from django.conf import settings
 from apps.analytics.services import obtener_perfil_completo
+from apps.analytics.views import dashboard_universo
 from apps.game.views import home, detalle_criatura, arena_view
+from apps.ml.metadata import leer_metricas_modelo
 
 # Personalización del Admin
 admin.site.site_header = "Panel de Control MithoWorld"
@@ -16,6 +18,7 @@ urlpatterns = [
     path('', home, name='home'),
     path('criatura/<int:id>/', detalle_criatura, {'obtener_perfil': obtener_perfil_completo}, name='detalle'),
     path('arena/', arena_view, name='arena'),
+    path('analytics/', dashboard_universo, {'leer_metricas_modelo': leer_metricas_modelo}, name='analytics'),
     path('admin/', admin.site.urls),
     path('api/', include('apps.game.urls')),
     path('api/oraculo/', include('apps.ml.urls')),
