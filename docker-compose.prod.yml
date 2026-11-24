@@ -18,6 +18,7 @@ services:
       - mitho_net
 
   web:
+    image: mithoworld-web:local
     build:
       context: .
       dockerfile: Dockerfile
@@ -27,7 +28,7 @@ services:
       sh -c "uv run python manage.py migrate &&
              uv run python manage.py collectstatic --noinput &&
              uv run gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2"
-    environment:
+    environment: &entorno_django
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME}
@@ -36,11 +37,32 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: "False"
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+      CRONICA_API_KEY: ${CRONICA_API_KEY:-}
+      CRONICA_MODELO: ${CRONICA_MODELO:-}
+      CRONICA_TIMEOUT_S: ${CRONICA_TIMEOUT_S:-15}
+      CRONICA_MAX_TOKENS: ${CRONICA_MAX_TOKENS:-256}
+      CRONICA_RATE: ${CRONICA_RATE:-3/min}
+      CRONICA_MAX_LLAMADAS_DIA: ${CRONICA_MAX_LLAMADAS_DIA:-100}
+      CRONICA_FORMATO: ${CRONICA_FORMATO:-json_object}
+      CRONICA_REQUIRE_PARAMETERS: ${CRONICA_REQUIRE_PARAMETERS:-False}
     volumes:
       - mitho_media_data:/app/media
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - mitho_net
+
+  cronista:
+    profiles: ["ai"]
+    image: mithoworld-web:local
+    pull_policy: never
+    command: ["/app/.venv/bin/python", "manage.py", "procesar_cronicas"]
+    environment: *entorno_django
+    restart: unless-stopped
+    depends_on:
+      - web
     networks:
       - mitho_net
 

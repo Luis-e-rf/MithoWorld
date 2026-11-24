@@ -1,40 +1,79 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Arena de Combate - MithoWorld{% endblock %}
+{% block title %}Arena de inferencia · MithoWorld{% endblock %}
 
 {% block content %}
-    <header style="text-align: center; margin: 60px 0;">
-        <h1>El Oráculo de Combate</h1>
-        <p class="subtitle">La IA predice el futuro basándose en 10,000 simulaciones.</p>
+<main class="arena" data-catalogo="{% url 'criatura-list' %}" data-predecir="{% url 'predecir_combate' %}" data-historial="{% url 'historial_combates' %}">
+    <header class="arena-intro">
+        <h1>Arena de inferencia</h1>
+        <p>Compara dos criaturas y consulta la predicción del Oráculo, entrenado con 10 000 combates sintéticos.</p>
     </header>
 
-    <div class="arena-container">
-            <!-- LUCHADOR 1 -->
-            <div class="fighter-box creature-card">
-                <h3>Luchador 1</h3>
-                <select id="select-luchador-1">
-                    <option value="">Selecciona criatura...</option>
-                </select>
-                <div id="preview-1"></div> <!-- Aquí mostraremos la foto al seleccionar -->
-            </div>
+    <form id="combate-form">
+        <div class="arena-pareja">
+            {% for lado in '12' %}
+            <section class="arena-criatura arena-panel" id="luchador-{{ lado }}">
+                <div class="arena-retrato" aria-hidden="true"><span>—</span><img hidden alt=""></div>
+                <div class="arena-identidad">
+                    <label for="select-luchador-{{ lado }}">Luchador {{ lado }}</label>
+                    <select id="select-luchador-{{ lado }}" required disabled>
+                        <option value="">Selecciona criatura…</option>
+                    </select>
+                    <span class="arena-tipo"></span>
+                </div>
+            </section>
+            {% endfor %}
+        </div>
+        <div class="arena-accion">
+            <button type="submit" id="predecir" disabled>Predecir ganador</button>
+            <span role="status" id="estado-combate">Cargando criaturas…</span>
+        </div>
+    </form>
 
-            <div class="vs-badge">VS</div>
-
-            <!-- LUCHADOR 2 -->
-            <div class="fighter-box creature-card">
-                <h3>Luchador 2</h3>
-                <select id="select-luchador-2">
-                    <option value="">Selecciona criatura...</option>
-                </select>
-                <div id="preview-2"></div>
+    <div class="arena-analisis">
+        <section class="arena-panel">
+            <h2>Cara a cara</h2>
+            <div class="arena-leyenda"><span id="nombre-1">Luchador 1</span><span id="nombre-2">Luchador 2</span></div>
+            <div id="comparativa"></div>
+        </section>
+        <section class="arena-panel" aria-labelledby="titulo-inferencia">
+            <h2 id="titulo-inferencia">Desglose de inferencia</h2>
+            <p id="inferencia-vacia">Ejecuta una predicción para ver el ganador y las métricas.</p>
+            <div id="inferencia" hidden>
+                <dl class="arena-lecturas">
+                    <div><dt>Ganador predicho</dt><dd id="ganador"></dd></div>
+                    <div><dt>Confianza</dt><dd id="confianza"></dd></div>
+                    <div><dt>Latencia</dt><dd id="latencia"></dd></div>
+                </dl>
+                <p>Tiempo de preparación del vector y ejecución de predict y predict_proba.</p>
+                <h3>Diferencial · L1 menos L2</h3>
+                <div id="diferencial" class="arena-insignias"></div>
+                <h3>Ventaja según las reglas</h3>
+                <div id="ventaja" class="arena-insignias"></div>
             </div>
+        </section>
     </div>
 
-    <button class="predict-btn" onclick="predecirCombate()">🔮 Predecir Ganador</button>
-    <div id="resultado-overlay"></div>
+    <section class="arena-panel arena-cronica" aria-labelledby="titulo-cronica" data-url="{% url 'cronica_combate' 0 %}">
+        <h2 id="titulo-cronica">Crónica del Oráculo</h2>
+        <p role="status" id="estado-cronica">Predice un combate para solicitar su crónica.</p>
+        <div id="lineas-cronica"></div>
+        <button type="button" id="pedir-cronica" hidden>Generar crónica</button>
+    </section>
+
+    <section class="arena-panel arena-historial" aria-labelledby="titulo-historial">
+        <h2 id="titulo-historial">Últimas 10 predicciones</h2>
+        <p role="status" id="estado-historial">Cargando historial…</p>
+        <button type="button" id="reintentar" hidden>Reintentar historial</button>
+        <div class="arena-tabla" tabindex="0" role="region" aria-label="Historial de predicciones">
+            <table aria-labelledby="titulo-historial">
+                <thead><tr><th scope="col">Hora local</th><th scope="col">Enfrentamiento</th><th scope="col">Ganador predicho</th><th scope="col">Confianza</th><th scope="col">Latencia</th></tr></thead>
+                <tbody id="filas-combates"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
 {% endblock %}
 
-{% block scripts %}
-    <script src="{% static 'js/arena.js' %}"></script>
-{% endblock %}
+{% block scripts %}<script src="{% static 'js/arena.js' %}" defer></script>{% endblock %}

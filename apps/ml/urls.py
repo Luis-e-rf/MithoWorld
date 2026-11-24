@@ -1,7 +1,7 @@
 # apps/ml/urls.py
 # Configuración de URLs para la app del oráculo (predicción de combates con IA)
 from django.urls import path
-from .views import PrediccionCombateView
+from .views import HistorialCombatesView, PrediccionCombateView
 
 urlpatterns = [
     # Endpoint de predicción de combate:
@@ -10,4 +10,5 @@ urlpatterns = [
     # Respuesta: JSON con ganador_id, ganador_nombre, probabilidad y mensaje
     # .as_view() convierte la clase APIView en una función vista callable por Django
     path('predecir/', PrediccionCombateView.as_view(), name='predecir_combate'),
+    path('combates/', HistorialCombatesView.as_view(), name='historial_combates'),
 ]

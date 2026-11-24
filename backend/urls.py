@@ -4,8 +4,10 @@ from django.urls import path, include, re_path
 from django.views.static import serve
 
 from django.conf import settings
-from apps.game.views import home, detalle_criatura
-from apps.ml.views import arena_view
+from apps.analytics.services import obtener_perfil_completo
+from apps.analytics.views import dashboard_universo
+from apps.game.views import home, detalle_criatura, arena_view
+from apps.ml.metadata import leer_metricas_modelo
 
 # Personalización del Admin
 admin.site.site_header = "Panel de Control MithoWorld"
@@ -14,11 +16,13 @@ admin.site.index_title = "Bienvenido al Gestor de Criaturas"
 
 urlpatterns = [
     path('', home, name='home'),
-    path('criatura/<int:id>/', detalle_criatura, name='detalle'),
+    path('criatura/<int:id>/', detalle_criatura, {'obtener_perfil': obtener_perfil_completo}, name='detalle'),
     path('arena/', arena_view, name='arena'),
+    path('analytics/', dashboard_universo, {'leer_metricas_modelo': leer_metricas_modelo}, name='analytics'),
     path('admin/', admin.site.urls),
     path('api/', include('apps.game.urls')),
     path('api/oraculo/', include('apps.ml.urls')),
+    path('api/ai/', include('apps.ai.urls')),
 ]
 
 # Servicio de archivos multimedia (/media/) en TODOS los entornos.

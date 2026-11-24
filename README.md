@@ -1,151 +1,77 @@
-# 🐉 MithoWorld V2.0: Battle Engine & AI Predictive Analytics
-![Estado](https://img.shields.io/badge/Estado-En_Producción_(GCP)-success)
-![Cloud](https://img.shields.io/badge/Cloud-Google_Cloud_Platform-blue)
-![Docker](https://img.shields.io/badge/Docker-Hardened_Containers-2496ED)
-![Tests](https://img.shields.io/badge/Tests-10%2F10_Passed-brightgreen)
-![Python](https://img.shields.io/badge/Python-3.12-blue)
-![Django](https://img.shields.io/badge/Backend-Django_5.2_%7C_DRF-092E20)
-![Package Manager](https://img.shields.io/badge/Package_Manager-uv-DE5FE9)
+# MithoWorld
 
-Plataforma Full Stack orientada a Ingeniería de Datos y Machine Learning. El sistema implementa un motor de combate RPG por turnos y un oráculo predictivo basado en Machine Learning, desplegado en infraestructura Cloud desacoplada y protegido perimetralmente con arquitectura Zero Trust.
+MithoWorld es un proyecto de ingeniería de datos e IA que permite seguir un combate desde los datos de las criaturas hasta una predicción explicada. La galería sitúa a cada criatura en el catálogo, la Arena compara dos rivales y el panel Analytics muestra cómo se generaron y evaluaron los datos. [Demo pública](https://mithoworld.yurack.com)
 
-🔗 **Demo en Producción:** [https://mithoworld.yurack.com](https://mithoworld.yurack.com)  
-📄 **Blueprint de Arquitectura Modular:** Consulta [`ARCHITECTURE_MIGRATION.md`](ARCHITECTURE_MIGRATION.md). Fases 1 (`apps/game`) y 2 (`apps/ml`) completadas e integradas; `apps/analytics` y `apps/ai` ya cuentan con scaffolding activo.
+| Dominio | Qué se puede explorar |
+|---|---|
+| Game | Galería en `/`, ficha en `/criatura/<id>/` y catálogo de solo lectura en `/api/criaturas/`. Cada criatura tiene cuatro estadísticas y hasta dos tipos elementales. |
+| ML | En `/arena/`, un pipeline de scikit-learn predice el ganador. La Arena presenta confianza, diferenciales, factores elementales y latencia de inferencia. Cada predicción exitosa queda en `CombatLog`. |
+| Analytics | La ficha reúne ranking, percentil, medias por elemento y enfrentamientos históricos del lote activo. En `/analytics/` se pueden consultar el balance elemental, las métricas del modelo publicado y el linaje de ambos. |
+| AI | «Generar crónica» narra una predicción ya registrada. Un consumidor opcional procesa la solicitud en segundo plano y valida cada línea contra la instantánea del duelo. |
 
----
+El modelo publicado se entrenó con 10 000 duelos simulados de semilla 42. En los 1 983 duelos de evaluación, cuyas parejas quedaron fuera del entrenamiento, obtuvo **85,17 % de accuracy** y **0,9344 de ROC AUC**. Estas cifras miden cuánto reproduce el modelo al simulador. El dashboard consulta los metadatos del artefacto en cada visita. [Metadatos de evaluación](apps/ml/ml_models/modelo_metadata.json)
 
-## 📸 Interfaz de Usuario
+La arquitectura describe las dependencias de los cuatro dominios. La bitácora conserva las decisiones, pruebas y resultados de cada fase. [Arquitectura vigente](ARCHITECTURE.md) · [Bitácora de implementación](IMPLEMENTATION_PHASES.md)
 
-| Galería de Criaturas | Oráculo Predictivo de Batallas |
-| :-------------------: | :-----------------------------: |
-| ![Página principal de MithoWorld](static/img/home.png) | ![Sistema de predicción de batallas](static/img/batalla.png) |
+## Desarrollo local
 
----
+Se necesitan Python 3.12, `uv`, Docker y Docker Compose. Desde la raíz del clon, por ejemplo `~/workspace/MithoWorld` en Ubuntu WSL, instala las dependencias bloqueadas y crea la configuración la primera vez.
 
-## 🏗️ Arquitectura de la Solución (GCP + Zero Trust)
-
-```mermaid
-graph TD
-    User((Usuario / Evaluador)) -->|HTTPS / TLS| CF[Cloudflare Edge Network]
-    CF -->|Zero Trust Tunnel| VM[GCP Compute Engine: e2-micro us-central1]
-
-    subgraph VM ["GCP Compute Engine (Always Free Tier)"]
-        subgraph OS ["Host Linux (Ubuntu 24.04 LTS)"]
-            Swap[Swapfile 2GB - OOM Protection]
-        end
-
-        subgraph Docker ["Docker Stack (Red Interna Aislada: mitho_net)"]
-            CFT[cloudflared connector] -->|Proxy HTTP| Guni[Gunicorn WSGI: 2 Workers / 2 Threads]
-            Guni --> Django[Django 5.2 API Backend]
-
-            Django <-->|Lectura/Escritura| DB[(PostgreSQL 16 Alpine)]
-            Django <-->|Media Storage| Vol[(Volumen mitho_media_data)]
-
-            subgraph ML ["Módulo Machine Learning"]
-                Django -->|Inferencia| Model[[Random Forest .pkl]]
-                Note[Lazy Loading + Fallback 503 + Clamping] -.-> Model
-            end
-        end
-    end
-
-    subgraph Analytics ["Roadmap Analytics Engineering (apps/analytics)"]
-        DB -.->|ELT Batch| BQ[(Google BigQuery)]
-        BQ -->|Marts Star Schema via dbt| PBI[Power BI Desktop]
-    end
+```bash
+uv sync --locked
+cp -n .env.example .env
 ```
 
----
+Completa `SECRET_KEY` y `DB_PASSWORD` en `.env` antes de iniciar PostgreSQL. Para generar una clave puedes usar `uv run python -c "import secrets; print(secrets.token_urlsafe(64))"`. Conserva la clave entre reinicios. En local, la plantilla usa `DEBUG=True`, `DB_HOST=localhost` y `DB_PORT=5432`. Las credenciales de PostgreSQL se inicializan al crear el volumen. [Plantilla de entorno](.env.example)
 
-## 🚀 Capacidades de Ingeniería
-
-### 1. Backend & Resiliencia
-- **Contenedores Endurecidos:** Despliegue con Docker Compose en red interna sin puertos expuestos al exterior; ejecución bajo usuario de sistema sin privilegios (`appuser`).
-- **Idempotencia de Datos y Archivos:** Script de seed (`poblar_criaturas`) con sincronización defensiva (`update_or_create`) desacoplada del sistema de archivos para prevenir duplicación de binarios en disco.
-- **Gestión Moderna de Dependencias:** Proyecto gobernado estrictamente con `uv` (`pyproject.toml` y `uv.lock`), garantizando compilaciones reproducibles y eliminando el uso de herramientas legadas.
-
-### 2. Machine Learning & Inferencia Defensiva
-- **Dataset Sintético:** Simulación vectorial de 10,000 enfrentamientos gobernados por lógica de ventajas elementales y dispersión estocástica.
-- **Modelo Predictivo:** Clasificador **Random Forest** (Scikit-Learn) con tasa de precisión del 93-98%.
-- **Carga Perezosa con Caché (Lazy Loading):** Los artefactos `.pkl` se cargan en memoria bajo demanda en la primera inferencia. Si los archivos binarios no están disponibles, el endpoint degrada controladamente respondiendo `HTTP 503 Service Unavailable` sin colapsar el proceso principal.
-- **Calibración de Probabilidades:** Salidas de `predict_proba` normalizadas y restringidas defensivamente en el intervalo cerrado $[0.0, 1.0]$.
-
-### 3. Suite de Pruebas Automatizadas
-- **10/10 Tests Unitarios y de Integración (`pytest-django`):**
-  - Validación de idempotencia estricta en base de datos y sistema de archivos (`tmp_path`).
-  - Pruebas de tolerancia a fallos del Oráculo ante ausencia de artefactos ML (`503`).
-  - Validación de consistencia probabilística y límites de respuesta.
-
----
-
-## 🛠️ Stack Tecnológico
-
-| Dominio | Tecnologías |
-| :--- | :--- |
-| **Backend & API** | Python 3.12, Django 5.2, Django REST Framework, Gunicorn, WhiteNoise |
-| **Entorno & Paquetes** | uv (Astral) |
-| **Base de Datos** | PostgreSQL 16 (Dockerizado) |
-| **Machine Learning** | Scikit-Learn, Pandas, NumPy, Joblib |
-| **Testing** | pytest, pytest-django |
-| **Infraestructura Cloud** | Google Cloud Platform (Compute Engine `e2-micro`), Ubuntu 24.04 LTS |
-| **Networking & Seguridad** | Cloudflare Zero Trust (Túneles cifrados salientes sin apertura de puertos) |
-| **Frontend** | Vanilla JavaScript (ES6+), CSS3 Glassmorphism |
-
----
-
-## ⚡ Guía de Ejecución Local
-
-### 1. Clonar el repositorio y configurar dependencias
 ```bash
-git clone https://github.com/Luis-e-rf/MithoWorld.git
-cd MithoWorld
-uv sync
-```
-
-### 2. Levantar la base de datos local
-```bash
-docker compose up -d
-```
-
-### 3. Variables de entorno (.env)
-Configura tu archivo `.env` en la raíz del proyecto:
-```bash
-SECRET_KEY=clave_secreta_local
-DEBUG=True
-DB_NAME=mithoworld_db
-DB_USER=mitho_user
-DB_PASSWORD=mitho_password
-DB_HOST=localhost
-DB_PORT=5432
-```
-
-### 4. Inicializar datos y ejecutar pruebas
-```bash
+docker compose up -d --wait db
 uv run python manage.py migrate
 uv run python manage.py poblar_criaturas
-uv run pytest
+uv run python manage.py cargar_combates_simulados
 uv run python manage.py runserver
 ```
 
----
+Abre `http://127.0.0.1:8000/`. El repositorio incluye el dataset, el manifiesto y el pipeline v2 para este primer arranque. La ingesta busca retratos opcionales en `imagenes_semilla/` y guarda los archivos asociados en `media/`. Para usar `/admin/`, crea el usuario con `uv run python manage.py createsuperuser`.
 
-## 🧠 Bitácora de Desafíos de Ingeniería
+## Comandos esenciales
 
-- **Gestión de Recursos en Cómputo Restringido (GCP `e2-micro` / 1GB RAM):**
-  - *Desafío:* La combinación de Gunicorn, PostgreSQL y Scikit-learn provocaba riesgo de *OOM Kill* durante el arranque y consumo concurrente.
-  - *Solución:* Configuración de un archivo Swap de 2GB a nivel de kernel (`swappiness=20`) y acotamiento de Gunicorn a 2 workers con 2 hilos, controlando la huella de memoria por proceso.
+| Comando | Cuándo usarlo |
+|---|---|
+| `uv run python manage.py poblar_criaturas` | Sincronizar por nombre los datos de `criaturas.csv`. Repetir la carga conserva las imágenes ya asociadas. |
+| `uv run python manage.py simular_batallas --seed 42` | Regenerar `dataset_batallas.csv` y su manifiesto a partir del catálogo de PostgreSQL. |
+| `uv run python manage.py entrenar_oraculo --seed 42` | Validar el dataset, separar parejas, entrenar y publicar juntos el pipeline v2 y sus metadatos en `apps/ml/ml_models/`. |
+| `uv run python manage.py cargar_combates_simulados` | Validar las huellas del CSV y del catálogo, cargar los hechos y activar el lote en una transacción. Repetir el comando con el mismo lote conserva el recuento. |
+| `uv run python manage.py procesar_cronicas` | Ejecutar el consumidor en otra terminal con las credenciales de IA configuradas. La opción `--once` intenta procesar un trabajo y termina. |
+| `uv run python manage.py makemigrations` | Generar migraciones después de modificar modelos. Revisa los archivos generados y aplica los cambios con `uv run python manage.py migrate`. |
+| `uv run python manage.py check` | Validar la configuración de Django. Para comprobar además que los modelos tienen su migración, ejecuta `uv run python manage.py makemigrations --check --dry-run`. |
+| `uv run pytest` | Ejecutar la suite con PostgreSQL y un proveedor LLM simulado. El usuario de BD necesita permiso para crear la base de pruebas. |
 
-- **Fuga de Almacenamiento en Ingesta de Binarios:**
-  - *Desafío:* Re-ejecutar el script de población generaba copias duplicadas de archivos (`imagen_1.png`) saturando el disco.
-  - *Solución:* Desacople arquitectónico entre la actualización de atributos del modelo y la comprobación de existencia previa en el sistema de almacenamiento antes de invocar `obj.imagen.save()`.
+Al cambiar de catálogo o semilla, ejecuta en orden simulación, entrenamiento y carga del lote. La huella del catálogo incluye las PK. Si una instalación existente tiene los mismos nombres con otros IDs, el cargador rechazará el lote publicado. En ese caso genera el dataset con ese catálogo y conserva los artefactos correspondientes para el siguiente despliegue.
 
-- **Aislamiento de Red sin Exposición de Puertos:**
-  - *Desafío:* Exponer el stack de contenedores a internet sin abrir puertos 80/443 en el cortafuegos de la VPC ni requerir una dirección IP estática con costo adicional.
-  - *Solución:* Orquestación de un contenedor `cloudflared` dentro de la red interna de Docker, manteniendo PostgreSQL y Django accesibles únicamente a través del túnel cifrado saliente de Cloudflare.
+## Operación en GCP
 
----
+El despliegue previsto para Compute Engine `e2-micro` usa Gunicorn, PostgreSQL 16 y un túnel saliente de Cloudflare. En la VM, configura `.env` con `SECRET_KEY`, las credenciales del volumen de PostgreSQL y `CLOUDFLARE_TUNNEL_TOKEN`. Define `ALLOWED_HOSTS=mithoworld.yurack.com` y `CSRF_TRUSTED_ORIGINS=https://mithoworld.yurack.com` si ese es el dominio del túnel. Compose fija `DEBUG=False` y `DB_HOST=db`. El destino HTTP del túnel dentro de la red Docker es `http://web:8000`. [Compose de producción](docker-compose.prod.yml)
 
-## ✒️ Autor
+| Modalidad | Configuración y arranque desde la raíz del proyecto |
+|---|---|
+| Demo con predicción ML y Analytics | Deja vacíos `CRONICA_API_KEY` y `CRONICA_MODELO`. Ejecuta `docker compose -f docker-compose.prod.yml up -d --build`. |
+| Demo con Crónica del Oráculo | Configura la clave de OpenRouter y el identificador del modelo en esas dos variables. Ejecuta `docker compose -f docker-compose.prod.yml --profile ai up -d --build`. El perfil añade `cronista`. |
 
-**Luis Ernesto Rodríguez Felacio**  
-*Ingeniero Informático & Especialista en Inteligencia Artificial*  
-[LinkedIn](https://www.linkedin.com/in/luis-ernesto-rodriguez-felacio/)
+El servicio `web` aplica las migraciones y recoge los estáticos al arrancar. En una instalación nueva, una vez que Gunicorn esté en servicio, inicializa el catálogo y los hechos con los artefactos incluidos en la imagen.
+
+```bash
+docker compose -f docker-compose.prod.yml exec web uv run python manage.py poblar_criaturas
+docker compose -f docker-compose.prod.yml exec web uv run python manage.py cargar_combates_simulados
+docker compose -f docker-compose.prod.yml exec web uv run python manage.py check --deploy
+```
+
+PostgreSQL y los retratos persisten en volúmenes. Para sustituir el modelo, incorpora el pipeline y los metadatos resultantes a la nueva imagen y recrea los workers. La crónica admite `json_object` y `json_schema`. Los límites iniciales son 15 s por llamada, 256 tokens de salida y 100 intentos por día UTC. Para volver de IA a la demo, detén `cronista` con `docker compose -f docker-compose.prod.yml --profile ai stop cronista`, vacía las dos variables de IA y vuelve a aplicar el comando de la demo. [Opciones del consumidor](.env.example)
+
+### Verificación antes del despliegue
+
+En el cierre local, `uv run pytest` pasó 97/97. Con configuración de producción simulada, `check --deploy` informó cuatro advertencias sobre HSTS, redirección HTTPS y cookies de sesión y CSRF. Las comprobaciones del dominio y del proxy en GCP quedan pendientes para el despliegue. [Resultados y ajustes implicados](IMPLEMENTATION_PHASES.md#cierre-documental-y-verificación-pre-deploy)
+
+## Autor
+
+Luis Ernesto Rodríguez Felacio · Ingeniero Informático y Especialista en Inteligencia Artificial. [LinkedIn](https://www.linkedin.com/in/luis-ernesto-rodriguez-felacio/)

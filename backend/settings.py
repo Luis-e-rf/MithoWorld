@@ -11,9 +11,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import re
 from pathlib import Path
-# Al inicio de backend/settings.py
-from decouple import config
+from decouple import Csv, config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,7 +28,40 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['192.168.0.170', 'localhost', '127.0.0.1', '.yurack.com']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+
+def entero_cronica(valor):
+    try:
+        return max(0, int(valor))
+    except ValueError:
+        return 0
+
+
+CRONICA_RATE = config('CRONICA_RATE', default='3/min')
+if not re.fullmatch(r'[1-9][0-9]{0,5}/(s|sec|second|m|min|minute|h|hour|d|day)', CRONICA_RATE):
+    CRONICA_RATE = '3/min'
+
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_RATES': {'oraculo': '30/min', 'cronica': CRONICA_RATE,
+                               'cronica_lectura': '60/min'},
+    'NUM_PROXIES': 0,  # El fallback de DRF identifica por REMOTE_ADDR.
+}
+
+CRONICA_API_KEY = config('CRONICA_API_KEY', default='').strip()
+CRONICA_MODELO = config('CRONICA_MODELO', default='').strip()
+CRONICA_TIMEOUT_S = config('CRONICA_TIMEOUT_S', default=15, cast=entero_cronica)
+CRONICA_MAX_TOKENS = min(512, config('CRONICA_MAX_TOKENS', default=256, cast=entero_cronica))
+CRONICA_MAX_LLAMADAS_DIA = config('CRONICA_MAX_LLAMADAS_DIA', default=100, cast=entero_cronica)
+CRONICA_FORMATO = config('CRONICA_FORMATO', default='json_object')
+CRONICA_REQUIRE_PARAMETERS = config('CRONICA_REQUIRE_PARAMETERS', default='False').lower() in ('true', '1', 'yes', 'on')
+
+if not DEBUG:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': Path.home() / '.cache' / 'mithoworld' / 'django',
+        },
+    }
 
 
 # Application definition
@@ -165,4 +198,4 @@ STATICFILES_DIRS = [
 ]
 
 # Confiar en las peticiones que vienen de tu dominio seguro
-CSRF_TRUSTED_ORIGINS = ['https://mithoworld.yurack.com']
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())

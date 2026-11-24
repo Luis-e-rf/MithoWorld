@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import override_settings
 
 from apps.game.models import Criatura
@@ -119,3 +120,64 @@ def test_poblar_criaturas_maneja_imagenes_faltantes(escenario):
 
     # La faltante se omite con warning en el log
     assert "Imagen no encontrada en disco: 2.png" in salida.getvalue()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ('encabezado', 'error'),
+    [
+        ([], 'no tiene encabezado'),
+        ([col for col in ENCABEZADO_CSV if col != 'Salud'], 'Faltan columnas.*Salud'),
+        (ENCABEZADO_CSV + ['Descripción'], 'columnas duplicadas'),
+        (ENCABEZADO_CSV + [''], 'columnas sin nombre'),
+    ],
+)
+def test_poblar_criaturas_rechaza_encabezado_invalido(escenario, encabezado, error):
+    with (escenario / 'criaturas.csv').open('w', encoding='utf-8', newline='') as archivo:
+        writer = csv.writer(archivo, delimiter=';')
+        if encabezado:
+            writer.writerow(encabezado)
+            writer.writerows(FILAS_CSV)
+
+    with pytest.raises(CommandError, match=error):
+        call_command('poblar_criaturas')
+
+    assert Criatura.objects.count() == 0
+    assert not (escenario / 'media').exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('columna_descripcion', ['Descripcion', 'Descripción'])
+def test_poblar_criaturas_admite_bom_y_columnas_reordenadas(escenario, columna_descripcion):
+    columnas = [
+        columna_descripcion if col == 'Descripcion' else col
+        for col in ENCABEZADO_CSV
+    ]
+    with (escenario / 'criaturas.csv').open('w', encoding='utf-8-sig', newline='') as archivo:
+        writer = csv.writer(archivo, delimiter=';')
+        writer.writerow(list(reversed(columnas)))
+        writer.writerows([list(reversed(fila)) for fila in FILAS_CSV])
+
+    call_command('poblar_criaturas')
+
+    criatura = Criatura.objects.get(nombre='Testeon')
+    assert (criatura.salud, criatura.ataque, criatura.defensa, criatura.velocidad) == (50, 90, 40, 95)
+    assert criatura.tipo_primario == 'fuego'
+    assert criatura.tipo_secundario == 'aire'
+    assert criatura.descripcion == 'Criatura de prueba'
+    assert criatura.imagen.name == 'criaturas/1.png'
+    assert Criatura.objects.get(nombre='Testalia').tipo_secundario is None
+
+
+@pytest.mark.django_db
+def test_poblar_criaturas_admite_csv_sin_columna_imagen(escenario):
+    with (escenario / 'criaturas.csv').open('w', encoding='utf-8', newline='') as archivo:
+        writer = csv.writer(archivo, delimiter=';')
+        writer.writerow(ENCABEZADO_CSV[:-1])
+        writer.writerows([fila[:-1] for fila in FILAS_CSV])
+
+    call_command('poblar_criaturas')
+
+    assert Criatura.objects.count() == 2
+    assert not Criatura.objects.get(nombre='Testeon').imagen
+    assert not (escenario / 'media').exists()

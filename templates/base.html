@@ -18,6 +18,7 @@
             <div class="nav-links">
                 <a href="{% url 'home' %}">Galería</a>
                 <a href="{% url 'arena' %}">⚔️ Arena IA</a>
+                <a href="{% url 'analytics' %}"{% if request.resolver_match.url_name == 'analytics' %} aria-current="page"{% endif %}>Analytics</a>
                 <a href="/admin" target="_blank">Admin</a>
             </div>
         </div>
