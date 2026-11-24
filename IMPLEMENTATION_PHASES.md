@@ -442,3 +442,20 @@ de semilla 42, y un transporte OpenRouter simulado. Se verificaron el ganador,
 el sondeo, el 429, el estado de demo, el reintento sin repetir ML, el texto
 literal con marcas HTML y el cambio de combate durante una petición. Las
 comprobaciones de esta fase hicieron cero llamadas a OpenRouter.
+
+## Cierre documental y verificación pre-deploy
+
+Verificación local del 23 de noviembre de 2026 sobre `v2-architecture`, con las fases funcionales hasta `3d7cec3`. El README reúne el desarrollo local y la operación en GCP. El ADR queda cerrado como registro histórico. [Guía de operación](README.md) · [Arquitectura vigente](ARCHITECTURE.md) · [ADR de migración](ARCHITECTURE_MIGRATION.md)
+
+`uv run pytest` pasó **97/97** sobre PostgreSQL. Para `uv run python manage.py check --deploy` se usaron los settings web del proyecto, con `DEBUG=False`, una `SECRET_KEY` aleatoria fuerte, `ALLOWED_HOSTS=mithoworld.yurack.com` y `CSRF_TRUSTED_ORIGINS=https://mithoworld.yurack.com` únicamente en el entorno del subproceso. Se comprobó que el contenido de `.env` conservó su huella. Django devolvió código 0 con **cuatro advertencias**, ninguna silenciada.
+
+| Código | Configuración efectiva de Django | Qué verificar antes de publicar |
+|---|---|---|
+| `security.W004` | `SECURE_HSTS_SECONDS=0` | Comprobar si el dominio público emite HSTS en Cloudflare. Si se adopta en Django, empezar con un plazo corto tras confirmar que todo el sitio funciona por HTTPS en el dominio público. |
+| `security.W008` | `SECURE_SSL_REDIRECT=False` | Comprobar que una visita HTTP al dominio redirige a HTTPS. Si se delega la redirección a Django, verificar primero que reconoce el esquema original a través del proxy para evitar bucles. |
+| `security.W012` | `SESSION_COOKIE_SECURE=False` | Habilitar la marca `Secure` para la cookie de sesión en los settings de producción y comprobarla al iniciar sesión en el admin. |
+| `security.W016` | `CSRF_COOKIE_SECURE=False` | Habilitar la marca `Secure` para la cookie CSRF en producción y verificar el formulario del admin sobre HTTPS. |
+
+Estos cuatro ajustes usan los valores predeterminados de Django. `backend/settings.py` tendría que configurar los cambios que se decida aplicar en la aplicación. El chequeo local inspecciona Django y deja pendiente verificar las políticas efectivas del túnel y del dominio público. [Configuración del proyecto](backend/settings.py) · [Checklist de despliegue de Django 5.2](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/)
+
+Se verificaron los 36 enlaces locales de los cuatro documentos Markdown versionados. Los 13 enlaces entre documentos y sus anclas resolvieron correctamente.

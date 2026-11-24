@@ -1,11 +1,11 @@
-Complementa a ARCHITECTURE.md — ver ahí el contexto general del stack; este documento cubre específicamente el plan de migración a apps/.
-
 # ARCHITECTURE_MIGRATION.md
 
-> **Estado:** EN EJECUCIÓN — Fases 1 y 2 completadas; scaffolding de `apps/analytics` y `apps/ai` activo.
+> **Estado:** COMPLETADA (Registro histórico)
 > **Tipo:** Blueprint, registro de ejecución y ADR del **Monolito Modular**.
 > **Rama:** `v2-architecture`
 > **Alcance:** Transición desde la estructura plana original (`criaturas/`, `oraculo/`) hacia dominios bajo `apps/`.
+
+Las secciones 0 a 6 conservan el diagnóstico, las cifras y las decisiones en el momento de la migración. Las fases incrementales posteriores resolvieron la deuda de la Arena, la inferencia, la analítica y la narración. El estado vigente y la evidencia de cierre se mantienen por separado. [Arquitectura actual](ARCHITECTURE.md) · [Bitácora de implementación](IMPLEMENTATION_PHASES.md)
 
 ## 0. Estado de ejecución
 
@@ -258,7 +258,9 @@ Protocolo general por fase (aplicar en este orden estricto, de menor a mayor rie
 
 ---
 
-## 7. Siguientes Pasos Propuestos
+## 7. Siguientes pasos del plan original y cierre
+
+La lista siguiente recoge las propuestas originales del ADR.
 
 1. Implementar el pipeline ELT de `apps/analytics` hacia BigQuery y los marts con dbt.
 2. Definir si `simular_batallas` se mueve a `analytics` o permanece en `ml`.
@@ -266,3 +268,5 @@ Protocolo general por fase (aplicar en este orden estricto, de menor a mayor rie
 4. Trasladar `arena_view` a `apps/game/views.py`.
 5. Implementar el narrador LLM y la integración MCP segura en `apps/ai`.
 6. Ejecutar `check --deploy`, smoke tests y merge de `v2-architecture` a `main`.
+
+**Resolución.** La Arena pasó a `game` y la inferencia a los servicios de `ml`. El simulador quedó en `ml`, mientras que `analytics` asumió la carga de hechos y las consultas en PostgreSQL. La crónica se implementó con un consumidor opcional y OpenRouter por HTTP. BigQuery, dbt y MCP quedaron como alternativas históricas. Las pruebas y la verificación pre-deploy están registradas en la bitácora. El merge a `main` y el despliegue en GCP corresponden al paso operativo posterior. [Resultados por fase](IMPLEMENTATION_PHASES.md) · [Arquitectura vigente](ARCHITECTURE.md)
